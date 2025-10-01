@@ -1,0 +1,57 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# large documentation files (optional, remove if you want to keep these in the repo)
+/error_log_workout_generator.md
+/generate_workout_extension.md
+/generate_workout_guide.md
+/savingexercise.md
+/workout_generator_extension1.md
+/workout_generator_implementation_status.md
+
+# example files
+/exampleCSS.css
+
+# local analysis docs
+frontend_audit.md
+fix_instructions.md
+
+# generated deployment configs
+netlify.toml
+
+# scratch API iterations
+app/api/workouts/generate/route.ts.*
+
+# build traces
+.next/trace

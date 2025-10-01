@@ -1,0 +1,11 @@
+requirements for new feature
+As a user I want to see a tooltips showing descriptive information about workout focus - on hover
+where? - in generate workout page
+user sees a tooltip that is aligned with current ux/ui design
+user can hover over any of the workout focus options and see a tooltip with descriptive information about it
+it should show info about the idea, benefits, main key purpose, why to do
+max 3 ssentences 
+the size of tooltip should be aligned with design RULES
+there should be 3 versions of each workout focus - and randomly showing 1 of them, change
+it should be modern, pro, effective way to do it. make sure you are chosing the right solution - so its not risky and gives full 
+it shoudl apprear after 0.9 seconds of hover

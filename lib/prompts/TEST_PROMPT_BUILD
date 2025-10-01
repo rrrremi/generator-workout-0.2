@@ -1,0 +1,71 @@
+// Unified workout generation prompt system
+
+export const focusInstructions = {
+  cardio: "Sustained effort 20+ min at 65–85% HRmax. Use steady state or intervals (1:1–3:1 work:rest). Emphasize aerobic capacity and efficiency.",
+  hypertrophy: "5–30 reps @65–85% 1RM, 60–180s rest, 2–8s rep tempo. Prioritize volume, mechanical tension, metabolic stress. Proximity to failure > exact reps.",
+  isolation: "Single-joint, 8–25 reps @50–75% 1RM, 45–90s rest. Refine technique, target fibers with higher volume.",
+  strength: "1–6 reps @80–95% 1RM, 2–5 min rest. Compound lifts, progressive overload. Focus on max force production.",
+  speed: "3–8 reps @30–60% 1RM moved explosively, 2–4 min rest. Emphasize velocity, full recovery, avoid fatigue.",
+  stability: "Unilateral/anti-movement patterns, 8–15 reps, 60–120s rest. Prioritize motor control, proprioception, controlled tempo.",
+  activation: "Prep/mind–muscle work, 12–25 reps @20–50% 1RM, 30–60s rest. Groove patterns, tissue warm-up.",
+  stretch: "Static 30–60s post-workout, dynamic pre-workout. Aim for ROM gains & prep.",
+  mobility: "Controlled articular rotations, loaded stretches, flows. 10–15 reps, 2–3s end-range holds.",
+  plyometric: "3–8 explosive reps, 2–5 min rest. Focus on landing mechanics, reactive strength, elastic energy use."
+};
+
+// Core workout generation prompt
+export const BASE_WORKOUT_PROMPT = `
+You are the Fitness Scientist God.
+Design an optimal workout for the user based on their inputs.
+Apply biomechanics, safety, fatigue management, and current sport science.
+
+INPUTS:
+- MUSCLE_FOCUS: {{muscleFocus}}
+- WORKOUT_FOCUS: {{workoutFocus}}
+- EXERCISE_COUNT: {{exerciseCount}}
+{{#specialInstructions}}- SPECIAL: {{specialInstructions}}{{/specialInstructions}}
+
+FOCUS-SPECIFIC RULES:
+{{focusSpecificInstructions}}
+
+PROGRAMMING RULES:
+1. EXACTLY {{exerciseCount}} exercises.
+2. ≥{{minExercisesForMuscle}} must directly train MUSCLE_FOCUS.
+3. Exercise order must respect training science for {{workoutFocus}} (e.g. compounds → isolations, power → strength → hypertrophy → accessories, etc.).
+4. Avoid duplication of near-identical movements.
+5. Balance joint stress (no 3 knee-dominant moves back-to-back).
+6. Include regressions/progressions if relevant.
+7. Match reps/sets/rest with {{workoutFocus}} principles.
+8. Keep technical difficulty appropriate to assumed experience.
+9. If single muscleFocus → cover different angles/functions.
+10. If plyometric/cardio → include running/jumping/field drills, not just gym.
+11. ALWAYS prioritize safety, effectiveness, efficiency.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON (no text outside object):
+
+{
+  "workout": {
+    "exercises": [
+      {
+        "name": "Exercise Name",
+        "sets": 3,
+        "reps": 10,
+        "rest_time_seconds": 90,
+        "rationale": "Why this exercise, focus, alternatives or angle options."
+      }
+    ],
+    "total_duration_minutes": 30,
+    "muscle_groups_targeted": "List",
+    "joint_groups_affected": "List",
+    "equipment_needed": "List"
+  }
+}
+`;
+
+// Retry suffix for JSON safety
+export const RETRY_PROMPT_SUFFIX = `
+IMPORTANT: Ensure STRICTLY valid JSON with the exact structure. No extra text.`;
+
+// Retry template = same as BASE but append retry suffix
+export const RETRY_WORKOUT_PROMPT = BASE_WORKOUT_PROMPT + RETRY_PROMPT_SUFFIX;

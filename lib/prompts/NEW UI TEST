@@ -1,0 +1,180 @@
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Dumbbell, Sparkles, Play, Settings, TimerReset, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+
+// Transparent / glassmorphism demo UI for a workout generator
+// - Tailwind for styling
+// - Framer Motion for subtle animations
+// - shadcn/ui components for structure
+
+const exercises = [
+  { name: "Incline DB Bench Press", sets: 3, reps: 10, rest: 90 },
+  { name: "Dumbbell Hammer Curl", sets: 3, reps: 12, rest: 60 },
+  { name: "Hip Thrust", sets: 3, reps: 10, rest: 90 },
+];
+
+export default function TransparentWorkoutUI() {
+  const [dark, setDark] = useState(true);
+
+  return (
+    <div className={dark ? "dark" : ""}>
+      <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-zinc-900 to-black text-slate-100">
+        {/* background accents */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
+          <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_45%)]" />
+        </div>
+
+        {/* Nav */}
+        <header className="sticky top-0 z-50 mx-auto w-full max-w-6xl px-4 pt-6">
+          <nav className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-xl">
+            <div className="flex items-center gap-2 px-2 py-1">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/10 shadow-inner">
+                <Dumbbell className="h-5 w-5" />
+              </div>
+              <span className="select-none text-sm font-semibold tracking-wide text-white/90">AthleteOS</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-2 md:flex">
+                <Button variant="ghost" className="rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10">Dashboard</Button>
+                <Button variant="ghost" className="rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10">Plans</Button>
+                <Button variant="ghost" className="rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10">Library</Button>
+              </div>
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-xl">
+                <Switch checked={dark} onCheckedChange={setDark} />
+                <span className="text-xs text-white/70">Dark mode</span>
+              </div>
+            </div>
+          </nav>
+        </header>
+
+        {/* Hero */}
+        <section className="mx-auto mt-12 w-full max-w-6xl px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-2xl"
+          >
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+
+            <div className="relative grid gap-6 md:grid-cols-[1.5fr,1fr]">
+              <div>
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-white/80">
+                  <Sparkles className="h-3.5 w-3.5" /> Modern Transparent UI
+                </div>
+                <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                  Glassmorphic Workout Generator
+                </h1>
+                <p className="mt-2 max-w-prose text-sm text-white/70">
+                  Minimal, elegant, and transparent. Use this as a starter to style your new health app.
+                </p>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button className="rounded-2xl border border-white/10 bg-white/10 px-5 py-5 text-white/90 backdrop-blur-xl hover:bg-white/20">
+                    <Play className="mr-2 h-4 w-4" /> Generate Workout
+                  </Button>
+                  <Button variant="ghost" className="rounded-2xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10">
+                    <Settings className="mr-2 h-4 w-4" /> Settings
+                  </Button>
+                </div>
+              </div>
+
+              <Card className="rounded-2xl border-white/10 bg-white/5 backdrop-blur-xl">
+                <CardHeader>
+                  <CardTitle className="text-base text-white/90">Quick Start</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <Input placeholder="Muscle focus e.g. Chest" className="rounded-xl border-white/10 bg-white/10 placeholder-white/40 text-white" />
+                  <Input placeholder="Workout focus e.g. Hypertrophy" className="rounded-xl border-white/10 bg-white/10 placeholder-white/40 text-white" />
+                  <div className="flex items-center gap-2">
+                    <Input placeholder="Exercise count e.g. 5" className="rounded-xl border-white/10 bg-white/10 placeholder-white/40 text-white" />
+                    <Button className="rounded-xl border border-white/10 bg-white/10 text-white/90 hover:bg-white/20">Go</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* Content Grid */}
+        <section className="mx-auto mt-10 w-full max-w-6xl px-4 pb-20">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Workout Preview */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+              <Card className="group rounded-2xl border-white/10 bg-white/5 backdrop-blur-xl">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-sm text-white/90">
+                    Today’s Session <TimerReset className="h-4 w-4 text-white/60" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {exercises.map((ex, i) => (
+                      <li key={i} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+                        <div>
+                          <p className="font-medium text-white/90">{ex.name}</p>
+                          <p className="text-xs text-white/60">{ex.sets}× sets • {ex.reps} reps • {ex.rest}s rest</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-white/40 transition-transform group-hover:translate-x-0.5" />
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Tips */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card className="rounded-2xl border-white/10 bg-white/5 backdrop-blur-xl">
+                <CardHeader>
+                  <CardTitle className="text-sm text-white/90">Coaching Tips</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-white/70">
+                  <p>Start with compound lifts before isolations to optimize force output and volume quality.</p>
+                  <p>Match rest to intent: strength (2–5m), hypertrophy (60–180s), endurance (≤60s).</p>
+                  <p>Rotate angles/grips to distribute joint stress and improve adaptation.</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Stats */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <Card className="rounded-2xl border-white/10 bg-white/5 backdrop-blur-xl">
+                <CardHeader>
+                  <CardTitle className="text-sm text-white/90">Session Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3 text-sm text-white/80">
+                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
+                    <span>Est. Duration</span>
+                    <span className="font-semibold text-white/90">42 min</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
+                    <span>Intensity</span>
+                    <span className="font-semibold text-white/90">Hypertrophy</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3">
+                    <span>Equipment</span>
+                    <span className="font-semibold text-white/90">DB, BB, Bench</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="mx-auto w-full max-w-6xl px-4 pb-10 text-center text-xs text-white/50">
+          <p>Transparent UI demo • Built with Tailwind, Motion, shadcn/ui</p>
+        </footer>
+      </div>
+    </div>
+  );
+}

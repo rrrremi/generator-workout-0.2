@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar styling */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Modern 2026 CSS Reset & Base Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Modern fluid typography scale */
+  font-size: clamp(14px, 2.5vw, 18px);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  margin: 0;
+  padding: 0;
+}
+
+/* Modern CSS Custom Properties for Responsive Design */
+:root {
+  /* Container queries and fluid spacing */
+  --container-padding: clamp(0.75rem, 2vw, 2rem);
+  --section-spacing: clamp(2rem, 4vw, 4rem);
+  --card-padding: clamp(1rem, 2vw, 1.5rem);
+  --border-radius: clamp(0.5rem, 1.5vw, 1rem);
+
+  /* Fluid typography scale */
+  --text-xs: clamp(0.75rem, 1.5vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 2vw, 1rem);
+  --text-base: clamp(1rem, 2.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 3vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 3.5vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 4vw, 2rem);
+  --text-3xl: clamp(2rem, 5vw, 3rem);
+
+  /* Modern spacing scale */
+  --space-1: clamp(0.25rem, 0.5vw, 0.5rem);
+  --space-2: clamp(0.5rem, 1vw, 0.75rem);
+  --space-3: clamp(0.75rem, 1.5vw, 1rem);
+  --space-4: clamp(1rem, 2vw, 1.5rem);
+  --space-6: clamp(1.5rem, 3vw, 2rem);
+  --space-8: clamp(2rem, 4vw, 3rem);
+
+  /* Touch-friendly sizing */
+  --touch-target: clamp(2.75rem, 6vw, 3rem);
+  --button-padding: clamp(0.75rem, 2vw, 1rem);
+
+  /* Glassmorphism colors for dark theme */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+}
+
+/* Modern Container Query Support */
+@container (min-width: 640px) {
+  .container-responsive {
+    --container-padding: 1.5rem;
+    --card-padding: 1.25rem;
+  }
+}
+
+@container (min-width: 768px) {
+  .container-responsive {
+    --container-padding: 2rem;
+    --card-padding: 1.5rem;
+  }
+}
+
+@container (min-width: 1024px) {
+  .container-responsive {
+    --container-padding: 2.5rem;
+    --card-padding: 2rem;
+  }
+}
+
+/* Mobile-First Responsive Utilities */
+.mobile-hidden {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .mobile-hidden {
+    display: block;
+  }
+}
+
+.desktop-hidden {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .desktop-hidden {
+    display: none;
+  }
+}
+
+/* Touch-friendly button sizing */
+.btn-touch {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+  padding: var(--button-padding);
+}
+
+/* Modern grid systems */
+.grid-responsive {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Fluid aspect ratios */
+.aspect-responsive {
+  aspect-ratio: 16 / 9;
+}
+
+@media (max-width: 640px) {
+  .aspect-responsive {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* Modern text scaling */
+.text-fluid {
+  font-size: var(--text-base);
+}
+
+.text-fluid-sm {
+  font-size: var(--text-sm);
+}
+
+.text-fluid-lg {
+  font-size: var(--text-lg);
+}
+
+.text-fluid-xl {
+  font-size: var(--text-xl);
+}
+
+/* Safe area support for modern devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Modern focus styles for accessibility */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 focus:ring-offset-slate-900;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast support */
+@media (prefers-contrast: high) {
+  .bg-white\/5 {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .border-white\/10 {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Modern scrollbar styling */
+.scrollbar-modern {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.scrollbar-modern::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-modern::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-modern::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-modern::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Modern selection styling */
+::selection {
+  background: rgba(244, 114, 182, 0.3);
+  color: white;
+}
+
+/* Modern placeholder styling */
+::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
+/* Modern input styling */
+input, textarea, select {
+  font-family: inherit;
+  font-size: var(--text-base);
+  line-height: inherit;
+}
+
+/* Container query utilities */
+@container (min-width: 20rem) {
+  .container-sm {
+    padding: var(--container-padding);
+  }
+}
+
+@container (min-width: 30rem) {
+  .container-md {
+    padding: calc(var(--container-padding) * 1.5);
+  }
+}
+
+@container (min-width: 40rem) {
+  .container-lg {
+    padding: calc(var(--container-padding) * 2);
+  }
+}
+
+/* Light mode (default) */
+body {
+  color: var(--black);
+  background: var(--white);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode class that can be toggled */
+body.dark-theme {
+  color: var(--text-primary);
+  background: var(--background);
+}
+
+@layer base {
+  h1 {
+    @apply text-4xl font-bold;
+  }
+  h2 {
+    @apply text-3xl font-bold;
+  }
+  h3 {
+    @apply text-2xl font-bold;
+  }
+  h4 {
+    @apply text-xl font-bold;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 bg-black text-white font-medium rounded-md hover:opacity-80 transition-opacity;
+  }
+  .btn-outline {
+    @apply px-4 py-2 bg-white text-black border border-black font-medium rounded-md hover:opacity-80 transition-opacity;
+  }
+  .input {
+    @apply px-4 py-2 border border-black rounded-md focus:outline-none focus:ring-2 focus:ring-black;
+  }
+  .error {
+    @apply text-red text-sm mt-1;
+  }
+  .content-card {
+    @apply bg-white/90 p-6 rounded-lg shadow-lg backdrop-blur-sm;
+  }
+}

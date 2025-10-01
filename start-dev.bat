@@ -1,0 +1,3 @@
+@echo off
+echo Starting Counter App development server...
+npm run dev

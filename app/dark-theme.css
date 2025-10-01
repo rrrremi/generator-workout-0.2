@@ -1,0 +1,132 @@
+/* Dark Theme inspired by Forty template */
+@import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,300italic,600,600italic");
+
+:root {
+  --dark-bg: #242943;
+  --dark-text: #ffffff;
+  --dark-text-secondary: rgba(255, 255, 255, 0.5);
+  --dark-accent: #9bf1ff;
+  --dark-accent-hover: #53e3fb;
+  --dark-border: rgba(212, 212, 255, 0.1);
+  --dark-button-hover: rgba(155, 241, 255, 0.1);
+  --dark-card-bg: rgba(36, 41, 67, 0.5);
+}
+
+/* Dark theme class that can be toggled */
+.dark-theme {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+  font-family: "Source Sans Pro", Helvetica, sans-serif;
+  letter-spacing: 0.025em;
+  line-height: 1.65;
+}
+
+/* Typography */
+.dark-theme h1, 
+.dark-theme h2, 
+.dark-theme h3, 
+.dark-theme h4, 
+.dark-theme h5, 
+.dark-theme h6 {
+  color: var(--dark-text);
+  font-weight: 600;
+  line-height: 1.65;
+  margin-bottom: 1em;
+}
+
+.dark-theme a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.dark-theme a:hover {
+  color: var(--dark-accent);
+}
+
+/* Button styles */
+.dark-theme .btn {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--dark-text);
+  color: var(--dark-text);
+  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.dark-theme .btn:hover {
+  box-shadow: inset 0 0 0 2px var(--dark-accent);
+  color: var(--dark-accent);
+}
+
+.dark-theme .btn:active {
+  background-color: var(--dark-button-hover);
+  box-shadow: inset 0 0 0 2px var(--dark-accent-hover);
+  color: var(--dark-accent-hover);
+}
+
+/* Form elements */
+.dark-theme input,
+.dark-theme select,
+.dark-theme textarea {
+  background-color: rgba(212, 212, 255, 0.035);
+  border: solid 1px var(--dark-border);
+  color: var(--dark-text);
+}
+
+.dark-theme input:focus,
+.dark-theme select:focus,
+.dark-theme textarea:focus {
+  border-color: var(--dark-accent);
+  box-shadow: 0 0 0 1px var(--dark-accent);
+}
+
+/* Card styles */
+.dark-theme .card {
+  background-color: var(--dark-card-bg);
+  border: solid 1px var(--dark-border);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.dark-theme .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Checkbox and radio styles */
+.dark-theme input[type="checkbox"] + label:before,
+.dark-theme input[type="radio"] + label:before {
+  border-color: var(--dark-border);
+}
+
+.dark-theme input[type="checkbox"]:checked + label:before,
+.dark-theme input[type="radio"]:checked + label:before {
+  background-color: var(--dark-accent);
+  border-color: var(--dark-accent);
+  color: var(--dark-bg);
+}
+
+/* Header/Navigation */
+.dark-theme header {
+  background-color: var(--dark-bg);
+  border-bottom: solid 1px var(--dark-border);
+}
+
+/* Toggle button */
+.theme-toggle {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.dark-theme .theme-toggle {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--dark-text);
+}
+
+.theme-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
