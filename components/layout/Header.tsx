@@ -144,10 +144,8 @@ export default function Header() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 focus-ring rounded-lg p-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-r from-fuchsia-500/20 to-cyan-400/20">
-              <Dumbbell className="h-5 w-5 text-fuchsia-400" />
-            </div>
-            <span className="hidden font-bold text-xl bg-gradient-to-r from-fuchsia-400 to-cyan-400 bg-clip-text text-transparent sm:block">
+            <Dumbbell className="h-5 w-5 text-white/90" strokeWidth={1.5} />
+            <span className="hidden font-light text-lg text-white/90 tracking-wide sm:block">
               FitGen
             </span>
           </Link>

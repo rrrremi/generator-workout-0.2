@@ -57,6 +57,7 @@ export interface Workout {
   equipment_needed_array?: string[];
   target_date?: string | null;
   status?: 'new' | 'target' | 'missed' | 'completed' | null;
+  rating?: number | null;
 }
 
 export interface WorkoutGenerationRequest {

@@ -56,7 +56,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body suppressHydrationWarning className="min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-black text-slate-100 font-sans antialiased overflow-x-hidden">
+      <body suppressHydrationWarning className="min-h-screen text-slate-100 font-sans antialiased overflow-x-hidden" style={{ background: '#5a7f65' }}>
         <div className="relative min-h-screen">
           <PsychedelicBackground />
 

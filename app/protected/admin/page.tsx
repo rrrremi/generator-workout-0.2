@@ -167,8 +167,7 @@ export default function AdminPage() {
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-fuchsia-400" />
+                  <h1 className="text-xl font-semibold tracking-tight">
                     Admin Panel
                   </h1>
                   <p className="mt-0.5 text-xs text-white/70">Manage users and platform operations</p>
@@ -183,9 +182,8 @@ export default function AdminPage() {
                     {isRefreshing ? 'Refreshing...' : 'Refresh Users'}
                   </button>
                   
-                  <div className="flex items-center gap-2 rounded-lg border border-transparent bg-white/10 px-2.5 py-1.5 text-xs">
-                    <Crown className="h-3.5 w-3.5 text-yellow-400" />
-                    <span className="text-white/90">Administrator</span>
+                  <div className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs">
+                    <span className="text-white/90 font-light">Administrator</span>
                   </div>
                 </div>
               </div>
@@ -206,7 +204,6 @@ export default function AdminPage() {
                   <h3 className="text-xs font-medium text-white/70">Total Users</h3>
                   <p className="text-lg font-bold text-white/90">{users.length}</p>
                 </div>
-                <Users className="h-5 w-5 text-fuchsia-400" />
               </div>
             </div>
 
@@ -216,7 +213,6 @@ export default function AdminPage() {
                   <h3 className="text-xs font-medium text-white/70">Total Workouts</h3>
                   <p className="text-lg font-bold text-white/90">{users.reduce((sum, user) => sum + user.workoutCount, 0)}</p>
                 </div>
-                <BarChart3 className="h-5 w-5 text-cyan-400" />
               </div>
             </div>
 
@@ -226,7 +222,6 @@ export default function AdminPage() {
                   <h3 className="text-xs font-medium text-white/70">Admins</h3>
                   <p className="text-lg font-bold text-white/90">{users.filter(user => user.is_admin).length}</p>
                 </div>
-                <Shield className="h-5 w-5 text-yellow-400" />
               </div>
             </div>
           </div>

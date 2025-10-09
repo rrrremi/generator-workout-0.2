@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { Dumbbell, Sparkles, Target, Clock, BarChart3, Trash2, AlertCircle, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown } from 'lucide-react'
 import DeleteWorkoutModal from '@/components/workout/DeleteWorkoutModal'
+import WorkoutRatingDisplay from '@/components/workout/WorkoutRatingDisplay'
 
 interface Workout {
   id: string
@@ -20,6 +21,7 @@ interface Workout {
   }
   target_date: string | null
   status: 'new' | 'target' | 'missed' | 'completed' | null
+  rating?: number | null
 }
 
 export default function WorkoutsPage() {
@@ -84,7 +86,7 @@ export default function WorkoutsPage() {
 
       let query = supabase
         .from('workouts')
-        .select('id, name, created_at, total_duration_minutes, muscle_focus, workout_focus, workout_data, target_date, status')
+        .select('id, name, created_at, total_duration_minutes, muscle_focus, workout_focus, workout_data, target_date, status, rating')
         .eq('user_id', userId)
 
       if (sortField === 'name') {
@@ -392,9 +394,9 @@ export default function WorkoutsPage() {
     <>
       <div className="fixed bottom-4 right-4 z-50">
         <Link href="/protected/workouts/generate">
-          <button className="h-10 px-3 rounded-full bg-gradient-to-r from-fuchsia-500 to-cyan-400 flex items-center justify-center shadow-lg hover:shadow-xl transition-all group">
-            <Sparkles className="h-4 w-4 text-white mr-1.5" />
-            <span className="text-white text-xs font-medium hidden sm:inline">Generate</span>
+          <button className="h-10 px-4 rounded-lg border border-white/20 bg-white/10 backdrop-blur-xl flex items-center justify-center shadow-lg hover:bg-white/20 transition-all group">
+            <Sparkles className="h-4 w-4 text-white/90 mr-1.5" strokeWidth={1.5} />
+            <span className="text-white/90 text-xs font-light hidden sm:inline">Generate</span>
           </button>
         </Link>
       </div>
@@ -413,8 +415,7 @@ export default function WorkoutsPage() {
             <div className="relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-                    <Dumbbell className="h-5 w-5 text-fuchsia-400" />
+                  <h1 className="text-xl font-semibold tracking-tight">
                     Your Workouts
                   </h1>
                   <p className="mt-0.5 text-xs text-white/70">
@@ -423,8 +424,8 @@ export default function WorkoutsPage() {
                 </div>
 
                 <Link href="/protected/workouts/generate">
-                  <button className="hidden sm:flex items-center gap-1.5 rounded-lg border border-transparent bg-gradient-to-r from-fuchsia-500/20 to-cyan-400/20 px-2.5 py-1.5 text-xs font-medium text-white/90 backdrop-blur-xl hover:bg-white/10 transition-colors focus-ring">
-                    <Sparkles className="h-3.5 w-3.5" />
+                  <button className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
                     New
                   </button>
                 </Link>
@@ -445,63 +446,63 @@ export default function WorkoutsPage() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search"
-                        className="w-28 rounded-md border border-transparent bg-black/40 py-1 pl-6 pr-2 text-xs text-white/90 placeholder-white/40 focus:border-fuchsia-400/50 focus:outline-none"
+                        className="w-28 rounded-md border border-white/20 bg-white/10 py-1 pl-6 pr-2 text-xs font-light text-white/90 placeholder-white/40 focus:border-white/40 focus:outline-none backdrop-blur-xl"
                       />
                     </div>
                     {hasActiveFilters && (
                       <button 
                         onClick={clearFilters}
-                        className="flex items-center gap-1 rounded-md border border-transparent bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10 transition-colors"
+                        className="flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/80 hover:bg-white/20 transition-colors"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3 w-3" strokeWidth={1.5} />
                       </button>
                     )}
                     <button
                       onClick={() => setShowFilters(!showFilters)}
-                      className="flex items-center gap-1 rounded-md border border-transparent bg-white/5 px-2 py-1 text-xs text-white/70 hover:bg-white/10 transition-colors"
+                      className="flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/80 hover:bg-white/20 transition-colors"
                     >
-                      <Filter className="h-3 w-3" />
+                      <Filter className="h-3 w-3" strokeWidth={1.5} />
                       <span className="hidden sm:inline">Filter</span>
                       {showFilters ? (
-                        <ChevronUp className="h-3 w-3" />
+                        <ChevronUp className="h-3 w-3" strokeWidth={1.5} />
                       ) : (
-                        <ChevronDown className="h-3 w-3" />
+                        <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
                       )}
                     </button>
                     <div className="flex items-center gap-1 text-xs text-white/60">
-                      <span>Sort by</span>
+                      <span className="font-light">Sort by</span>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleSortChange('target_date')}
-                          className={`flex items-center gap-1 rounded-md border border-transparent px-2 py-1 transition-colors ${
+                          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-light transition-colors ${
                             sortField === 'target_date'
-                              ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                              : 'bg-white/5 text-white/70 hover:bg-white/10'
+                              ? 'border-white/40 bg-white/20 text-white/90'
+                              : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20'
                           }`}
                         >
-                          <ArrowUpDown className="h-3 w-3" />
+                          <ArrowUpDown className="h-3 w-3" strokeWidth={1.5} />
                           Target Date
                         </button>
                         <button
                           onClick={() => handleSortChange('created_at')}
-                          className={`flex items-center gap-1 rounded-md border border-transparent px-2 py-1 transition-colors ${
+                          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-light transition-colors ${
                             sortField === 'created_at'
-                              ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                              : 'bg-white/5 text-white/70 hover:bg-white/10'
+                              ? 'border-white/40 bg-white/20 text-white/90'
+                              : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20'
                           }`}
                         >
-                          <ArrowUpDown className="h-3 w-3" />
+                          <ArrowUpDown className="h-3 w-3" strokeWidth={1.5} />
                           Created
                         </button>
                         <button
                           onClick={() => handleSortChange('name')}
-                          className={`flex items-center gap-1 rounded-md border border-transparent px-2 py-1 transition-colors ${
+                          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-light transition-colors ${
                             sortField === 'name'
-                              ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                              : 'bg-white/5 text-white/70 hover:bg-white/10'
+                              ? 'border-white/40 bg-white/20 text-white/90'
+                              : 'border-white/20 bg-white/10 text-white/70 hover:bg-white/20'
                           }`}
                         >
-                          <ArrowUpDown className="h-3 w-3" />
+                          <ArrowUpDown className="h-3 w-3" strokeWidth={1.5} />
                           Name
                         </button>
                       </div>
@@ -611,9 +612,10 @@ export default function WorkoutsPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0 overflow-hidden">
                               <div className="flex items-center gap-2">
-                                <h3 className="text-sm text-white truncate flex-1">
+                                <h3 className="text-sm font-light text-white/90 truncate flex-1">
                                   {workout.name || `Workout ${new Date(workout.created_at).toLocaleDateString()}`}
                                 </h3>
+                                <WorkoutRatingDisplay rating={workout.rating} />
                                 <div className="flex-shrink-0">
                                   {renderStatusBadge(workout.status, workout.target_date)}
                                 </div>

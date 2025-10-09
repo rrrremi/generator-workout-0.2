@@ -5,12 +5,16 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Dumbbell, Sparkles, Play, Target, BarChart3, Clock, Calendar, Trash2, ArrowLeft, RefreshCw, Info, Zap, Activity, Pencil } from 'lucide-react'
+import { Dumbbell, Sparkles, Play, Target, BarChart3, Clock, Calendar, Trash2, ArrowLeft, RefreshCw, Info, Zap, Activity, Pencil, Plus } from 'lucide-react'
 import InlineEdit from '@/components/ui/InlineEdit'
 import ExerciseVideoButton from '@/components/workout/ExerciseVideoButton'
 import { SkeletonWorkoutDetail } from '@/components/ui/Skeleton'
 import { Workout } from '@/types/workout'
 import DeleteWorkoutModal from '@/components/workout/DeleteWorkoutModal'
+import ExerciseContextMenu from '@/components/workout/ExerciseContextMenu'
+import DeleteExerciseModal from '@/components/workout/DeleteExerciseModal'
+import WorkoutRating from '@/components/workout/WorkoutRating'
+import ExercisePicker from '@/components/workout/ExercisePicker'
 
 export default function WorkoutDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -26,6 +30,12 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   const [targetDateError, setTargetDateError] = useState<string | null>(null)
   const [completedExercises, setCompletedExercises] = useState<Record<number, { id: string; completed: boolean }>>({})
   const [completionLoaded, setCompletionLoaded] = useState(false)
+  const [contextMenuIndex, setContextMenuIndex] = useState<number | null>(null)
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
+  const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<{ index: number; workoutExerciseId: string; name: string } | null>(null)
+  const [showDeleteExerciseModal, setShowDeleteExerciseModal] = useState(false)
+  const [isDeletingExercise, setIsDeletingExercise] = useState(false)
+  const [showExercisePicker, setShowExercisePicker] = useState(false)
   const supabase = createClient()
 
   const goBack = () => {
@@ -307,6 +317,107 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     }
   }, [toggleExerciseCompletion])
 
+  const handleLongPressStart = useCallback((index: number) => {
+    const timer = setTimeout(() => {
+      setContextMenuIndex(index)
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+    }, 500)
+    setLongPressTimer(timer)
+  }, [])
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+  }, [longPressTimer])
+
+  const handleDeleteExerciseClick = useCallback((index: number) => {
+    const workoutExerciseId = completedExercises[index]?.id
+    const exerciseName = workout?.workout_data.exercises[index]?.name
+    
+    if (!workoutExerciseId || !exerciseName) return
+    
+    setDeleteExerciseTarget({ index, workoutExerciseId, name: exerciseName })
+    setShowDeleteExerciseModal(true)
+  }, [completedExercises, workout])
+
+  const handleDeleteExerciseConfirm = useCallback(async () => {
+    if (!deleteExerciseTarget || !workout) return
+    
+    setIsDeletingExercise(true)
+    
+    // Optimistic update
+    const updatedExercises = workout.workout_data.exercises.filter((_, i) => i !== deleteExerciseTarget.index)
+    const optimisticWorkout = {
+      ...workout,
+      workout_data: {
+        ...workout.workout_data,
+        exercises: updatedExercises
+      }
+    }
+    setWorkout(optimisticWorkout)
+    
+    try {
+      const response = await fetch('/api/workouts/exercises/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workoutId: workout.id,
+          workoutExerciseId: deleteExerciseTarget.workoutExerciseId,
+          exerciseIndex: deleteExerciseTarget.index
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete exercise')
+      }
+      
+      // Replace with server response
+      setWorkout(data.workout)
+      
+      // Refresh completion state
+      await refreshCompletionState()
+      await recomputeWorkoutStatus()
+      
+    } catch (error: any) {
+      console.error('Error deleting exercise:', error)
+      // Rollback on error
+      setWorkout(workout)
+      setError(error.message || 'Failed to delete exercise')
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setIsDeletingExercise(false)
+      setShowDeleteExerciseModal(false)
+      setDeleteExerciseTarget(null)
+    }
+  }, [deleteExerciseTarget, workout, refreshCompletionState, recomputeWorkoutStatus])
+
+  const handleExerciseAdded = useCallback(async () => {
+    // Refresh workout data after adding exercise
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (error) throw error
+
+      setWorkout(data)
+      await refreshCompletionState()
+      await recomputeWorkoutStatus()
+    } catch (error) {
+      console.error('Error refreshing workout:', error)
+      setError('Failed to refresh workout')
+      setTimeout(() => setError(null), 3000)
+    }
+  }, [params.id, refreshCompletionState, recomputeWorkoutStatus, supabase])
+
   useEffect(() => {
     async function fetchWorkout() {
       try {
@@ -406,8 +517,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                     </div>
                   ) : (
                     <div className="flex items-center">
-                      <h1 className="text-xl font-semibold tracking-tight flex items-center">
-                        <Dumbbell className="h-5 w-5 mr-2 text-fuchsia-400" />
+                      <h1 className="text-xl font-semibold tracking-tight">
                         {workout?.name || `Workout ${new Date(workout?.created_at || '').toLocaleDateString()}`}
                       </h1>
                       <button 
@@ -423,8 +533,8 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Link href="/protected/workouts/generate">
-                    <button className="rounded-lg border border-transparent bg-white/10 px-2.5 py-1.5 text-xs text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5">
-                      <Play className="h-3.5 w-3.5" />
+                    <button className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5">
+                      <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
                       New
                     </button>
                   </Link>
@@ -457,6 +567,13 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                       <Target className="h-3.5 w-3.5 mr-1" />
                       Overview
                     </h3>
+                    <WorkoutRating
+                      workoutId={workout.id}
+                      initialRating={workout.rating}
+                      onRatingChange={(rating) => {
+                        setWorkout({ ...workout, rating })
+                      }}
+                    />
                   </div>
                   <div className="p-2">
                     <div className="grid gap-2 grid-cols-2">
@@ -568,6 +685,13 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                       <Dumbbell className="h-3.5 w-3.5 mr-1" />
                       Exercises ({workout.workout_data.exercises.length})
                     </h3>
+                    <button
+                      onClick={() => setShowExercisePicker(true)}
+                      className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1"
+                    >
+                      <Plus className="h-3 w-3" strokeWidth={1.5} />
+                      Add
+                    </button>
                   </div>
                   <div className="p-2 space-y-2">
                     {workout.workout_data.exercises.map((exercise, index) => {
@@ -582,6 +706,12 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                           aria-pressed={isCompleted}
                           onClick={() => toggleExerciseCompletion(index)}
                           onKeyDown={(event) => handleExerciseKeyDown(event, index)}
+                          onTouchStart={() => handleLongPressStart(index)}
+                          onTouchEnd={handleLongPressEnd}
+                          onTouchCancel={handleLongPressEnd}
+                          onMouseDown={() => handleLongPressStart(index)}
+                          onMouseUp={handleLongPressEnd}
+                          onMouseLeave={handleLongPressEnd}
                           initial={{ opacity: 0, x: -5 }}
                           animate={{
                             opacity: 1,
@@ -589,18 +719,28 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                             scale: isCompleted ? 1.01 : 1
                           }}
                           transition={{ delay: 0.05 + index * 0.03 }}
-                          className={`rounded-md border p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 cursor-pointer ${
+                          className={`relative rounded-md border p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 cursor-pointer ${
                             isCompleted
                               ? 'border-emerald-400/40 bg-emerald-400/10'
                               : 'border-transparent bg-white/5 hover:bg-white/10'
                           }`}
                         >
+                          {contextMenuIndex === index && (
+                            <div className="absolute top-0 right-0 mt-1 mr-1">
+                              <ExerciseContextMenu
+                                isOpen={contextMenuIndex === index}
+                                onDelete={() => handleDeleteExerciseClick(index)}
+                                onClose={() => setContextMenuIndex(null)}
+                                exerciseName={exercise.name}
+                              />
+                            </div>
+                          )}
                           <div className="flex items-center">
                             <div className="flex items-center gap-1.5">
-                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-r from-fuchsia-500/20 to-cyan-400/20 border border-transparent text-[10px] font-medium text-white/90">
+                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] font-light text-white/70">
                                 {index + 1}
                               </div>
-                              <h4 className={`text-xs font-medium ${isCompleted ? 'text-emerald-100' : 'text-white/90'}`}>
+                              <h4 className={`text-xs font-light ${isCompleted ? 'text-emerald-100' : 'text-white/90'}`}>
                                 {exercise.name}
                               </h4>
                             </div>
@@ -654,6 +794,24 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
           setShowDeleteConfirm(false)
         }}
         onConfirm={handleDelete}
+      />
+      <DeleteExerciseModal
+        open={showDeleteExerciseModal}
+        isDeleting={isDeletingExercise}
+        exerciseName={deleteExerciseTarget?.name || ''}
+        isLastExercise={workout?.workout_data.exercises.length === 1}
+        onCancel={() => {
+          if (isDeletingExercise) return
+          setShowDeleteExerciseModal(false)
+          setDeleteExerciseTarget(null)
+        }}
+        onConfirm={handleDeleteExerciseConfirm}
+      />
+      <ExercisePicker
+        isOpen={showExercisePicker}
+        workoutId={params.id}
+        onClose={() => setShowExercisePicker(false)}
+        onExerciseAdded={handleExerciseAdded}
       />
     </>
   )

@@ -9,7 +9,7 @@ import { WorkoutGenerationResponse, WorkoutGenerationRequest } from '@/types/wor
 import { createClient } from '@/lib/supabase/client';
 import { muscleGroups, mapToSimplifiedCategories } from '@/lib/data/muscleGroups';
 import { motion } from 'framer-motion'
-import { Dumbbell, Sparkles, Play, Settings, ChevronLeft, Zap, Target, Clock, BarChart3, CheckCircle, Activity } from 'lucide-react'
+import { Dumbbell, Sparkles, Play, Settings, ChevronLeft, Zap, Target, Clock, BarChart3, CheckCircle, Activity, RefreshCw } from 'lucide-react'
 import { getRandomTooltip } from '@/lib/tooltips/workoutFocusTooltips';
 import SimilarWorkoutSuggestions from '@/components/workout/SimilarWorkoutSuggestions';
 
@@ -451,36 +451,35 @@ export default function GenerateWorkoutPage() {
                 maxLength={140}
               />
             </div>
-
             {/* Generate Button */}
             <button
               disabled={isGenerating || muscleFocus.length === 0}
               onClick={generateWorkout}
-              className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-md font-medium text-xs transition-all ${
+              className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border font-light text-xs transition-all ${
                 isGenerating || muscleFocus.length === 0
-                  ? 'bg-white/10 text-white/50 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-fuchsia-500 to-cyan-400 text-white hover:opacity-90'
+                  ? 'border-white/20 bg-white/10 text-white/50 cursor-not-allowed'
+                  : 'border-white/30 bg-white/20 text-white/90 hover:bg-white/30 backdrop-blur-xl'
               }`}
             >
               {isGenerating ? (
                 <>
-                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
                   Generating...
                 </>
               ) : (
                 <>
-                  <Play className="h-3 w-3" />
+                  <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Generate
                 </>
               )}
             </button>
           </div>
-        </motion.div>
 
-        {/* Usage Stats */}
-        <div className="mt-2 text-center text-[10px] text-white/50">
-          Today: {generationsToday !== null ? `${generationsToday}/100` : '...'}
-        </div>
+          {/* Usage Stats */}
+          <div className="mt-2 text-center text-[10px] text-white/50">
+            Today: {generationsToday !== null ? `${generationsToday}/100` : '...'}
+          </div>
+        </motion.div>
         
         {/* Similar Workout Suggestions */}
         <SimilarWorkoutSuggestions 
