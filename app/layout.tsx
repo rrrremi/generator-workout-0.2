@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/layout/Header'
@@ -11,19 +11,20 @@ const inter = Inter({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: 'FitGen - AI-Powered Workout Generator',
-  description: 'Generate personalized workouts with AI. Track your fitness journey and achieve your goals with smart, adaptive training plans.',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
   ],
+}
+
+export const metadata: Metadata = {
+  title: 'FitGen - AI-Powered Workout Generator',
+  description: 'Generate personalized workouts with AI. Track your fitness journey and achieve your goals with smart, adaptive training plans.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
