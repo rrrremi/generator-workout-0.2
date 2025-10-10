@@ -55,11 +55,25 @@ export default function Header() {
       setUser(null)
       setIsAdmin(false)
     }
-  }, [supabase])
+  }, [])
 
-  // Initial load of user data
+  // Initial load of user data and auth state listener
   useEffect(() => {
     loadUser()
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadUser()
+      } else {
+        setUser(null)
+        setIsAdmin(false)
+      }
+    })
+    
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [loadUser])
   
   // Set up subscription to profile changes
@@ -90,7 +104,7 @@ export default function Header() {
     return () => {
       supabase.removeChannel(subscription)
     }
-  }, [user?.id, supabase, loadUser])
+  }, [user?.id, loadUser])
   
   // Reload user data when navigating back from profile edit page
   useEffect(() => {
