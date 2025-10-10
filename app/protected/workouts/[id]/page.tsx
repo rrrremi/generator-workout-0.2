@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -30,6 +30,59 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+const WORKOUT_FOCUS_OPTIONS = [
+  { id: 'hypertrophy', label: 'Hypertrophy' },
+  { id: 'strength', label: 'Strength' },
+  { id: 'cardio', label: 'Cardio' },
+  { id: 'isolation', label: 'Isolation' },
+  { id: 'stability', label: 'Stability' },
+  { id: 'plyometric', label: 'Plyometric' },
+  { id: 'isometric', label: 'Isometric' },
+  { id: 'mobility', label: 'Mobility' }
+]
+
+const normalizeWorkoutFocus = (value: unknown): string[] => {
+  const normalized = new Set<string>()
+
+  const pushValue = (raw: unknown) => {
+    if (raw === null || raw === undefined) return
+    const cleaned = String(raw).replace(/["]/g, '').trim().toLowerCase()
+    if (cleaned) {
+      normalized.add(cleaned)
+    }
+  }
+
+  if (value === null || value === undefined) {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(pushValue)
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return []
+    }
+
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          parsed.forEach(pushValue)
+        } else {
+          pushValue(parsed)
+        }
+      } catch {
+        trimmed.split(',').forEach(pushValue)
+      }
+    } else {
+      trimmed.split(',').forEach(pushValue)
+    }
+  }
+
+  return Array.from(normalized)
+}
 
 // Sortable Exercise Item Component
 function SortableExerciseItem({
@@ -178,6 +231,10 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   const [nameError, setNameError] = useState<string | null>(null)
   const [isSavingTargetDate, setIsSavingTargetDate] = useState(false)
   const [targetDateError, setTargetDateError] = useState<string | null>(null)
+  const [isEditingFocus, setIsEditingFocus] = useState(false)
+  const [selectedFocusIds, setSelectedFocusIds] = useState<string[]>([])
+  const [isSavingFocus, setIsSavingFocus] = useState(false)
+  const [focusError, setFocusError] = useState<string | null>(null)
   const [completedExercises, setCompletedExercises] = useState<Record<number, { id: string; completed: boolean }>>({})
   const [completionLoaded, setCompletionLoaded] = useState(false)
   const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null)
@@ -431,6 +488,70 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     refreshCompletionState()
   }, [refreshCompletionState])
+
+  useEffect(() => {
+    if (workout) {
+      setSelectedFocusIds(normalizeWorkoutFocus(workout.workout_focus))
+    }
+  }, [workout])
+
+  const focusOptions = useMemo(() => WORKOUT_FOCUS_OPTIONS, [])
+
+  const handleFocusToggle = useCallback((id: string) => {
+    setSelectedFocusIds((prev) => {
+      const alreadySelected = prev.includes(id)
+      if (alreadySelected) {
+        const next = prev.filter((focusId) => focusId !== id)
+        setFocusError(null)
+        return next
+      }
+
+      if (prev.length >= 3) {
+        setFocusError('You can select up to 3 focus types')
+        return prev
+      }
+
+      setFocusError(null)
+      return [...prev, id]
+    })
+  }, [])
+
+  const handleUpdateFocus = useCallback(async () => {
+    if (!workout) return
+
+    if (selectedFocusIds.length === 0) {
+      setFocusError('Select at least one focus type')
+      return
+    }
+
+    try {
+      setIsSavingFocus(true)
+      setFocusError(null)
+
+      const response = await fetch('/api/workouts/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: workout.id,
+          workout_focus: selectedFocusIds
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update focus')
+      }
+
+      setWorkout(data.workout)
+      setIsEditingFocus(false)
+    } catch (updateError: any) {
+      console.error('Error updating focus:', updateError)
+      setFocusError(updateError.message || 'Failed to update focus')
+    } finally {
+      setIsSavingFocus(false)
+    }
+  }, [selectedFocusIds, workout])
 
   // Handle exercise click - detect single click vs double-tap
   const handleExerciseClick = useCallback((index: number, event: React.MouseEvent) => {
@@ -835,14 +956,43 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     <>
       {/* Main Content with Back Button */}
       <section className="mx-auto w-full max-w-3xl px-2 pb-10">
-        {/* Back button positioned like in Profile view */}
-        <div className="mb-2 relative z-10">
+        {/* Back button and actions */}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 relative z-10">
           <Link href="/protected/workouts">
             <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </button>
           </Link>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleCopyClick}
+              className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Copy
+            </button>
+            <button
+              onClick={handleRegenerate}
+              className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Regenerate
+            </button>
+            <Link href="/protected/workouts/generate">
+              <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+                <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
+                New
+              </button>
+            </Link>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="rounded-lg border border-red-500/50 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 transition-colors"
+              aria-label="Delete workout"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -888,36 +1038,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                   )}
                   <p className="mt-0.5 text-xs text-white/70">Review your personalized workout</p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={handleCopyClick}
-                    className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5"
-                  >
-                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Copy
-                  </button>
-                  <button
-                    onClick={handleRegenerate}
-                    className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Regenerate
-                  </button>
-                  <Link href="/protected/workouts/generate">
-                    <button className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5">
-                      <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      New
-                    </button>
-                  </Link>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="rounded-lg border border-red-500/50 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 transition-colors"
-                    disabled={isDeleting}
-                    aria-label="Delete workout"
-                  >
-                    {isDeleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+                
               </div>
 
               {error && (
@@ -989,41 +1110,88 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                           <div className="text-[10px] text-red-400">{targetDateError}</div>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1 items-center rounded-md border border-transparent bg-white/5 p-2">
-                        <div className="flex items-center gap-1 text-xs text-white/70 mr-1">
-                          <Target className="h-3 w-3" />
-                          Focus:
+                      <div className="flex flex-1 flex-col gap-1 rounded-md border border-transparent bg-white/5 p-2">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1 text-xs text-white/70">
+                            <Target className="h-3 w-3" />
+                            Focus
+                          </div>
+                          {!isEditingFocus && (
+                            <button
+                              onClick={() => {
+                                setSelectedFocusIds(normalizeWorkoutFocus(workout.workout_focus))
+                                setIsEditingFocus(true)
+                              }}
+                              className="p-1 rounded-md text-white/60 hover:text-white/90 hover:bg-white/10 transition-colors"
+                              title="Edit focus"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
-                        {(() => {
-                          // Handle different possible formats of workout_focus
-                          let focusArray: any[] = [];
-                          
-                          if (Array.isArray(workout.workout_focus)) {
-                            focusArray = workout.workout_focus;
-                          } else {
-                            const focusValue = workout.workout_focus as unknown as string;
-                            if (typeof focusValue === 'string') {
-                              if (focusValue.startsWith('[') && focusValue.endsWith(']')) {
-                                try {
-                                  focusArray = JSON.parse(focusValue);
-                                } catch (e) {
-                                  focusArray = [focusValue];
-                                }
-                              } else {
-                                focusArray = [focusValue];
-                              }
-                            }
-                          }
-                          
-                          return focusArray.slice(0, 2).map((focus: any, i: number) => {
-                            const cleanFocus = typeof focus === 'string' ? focus.replace(/["']/g, '') : focus;
-                            return (
-                              <span key={i} className="text-[9px] px-1.5 py-0 rounded-full bg-cyan-500/20 text-cyan-300 capitalize">
-                                {cleanFocus}
+
+                        {isEditingFocus ? (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {focusOptions.map((option) => {
+                                const active = selectedFocusIds.includes(option.id)
+                                return (
+                                  <button
+                                    key={option.id}
+                                    onClick={() => handleFocusToggle(option.id)}
+                                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] transition-colors border ${
+                                      active
+                                        ? 'border-cyan-400/40 bg-cyan-500/20 text-cyan-100'
+                                        : 'border-transparent bg-white/10 text-white/60 hover:bg-white/15'
+                                    }`}
+                                  >
+                                    {option.label}
+                                    {active && <Check className="h-2.5 w-2.5" />}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            {focusError && (
+                              <div className="text-[10px] text-red-400">{focusError}</div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={handleUpdateFocus}
+                                disabled={isSavingFocus}
+                                className="flex items-center gap-1 rounded-md bg-cyan-500/20 px-2 py-1 text-[10px] text-cyan-100 hover:bg-cyan-500/30 transition-colors disabled:opacity-50"
+                              >
+                                {isSavingFocus ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                Save
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedFocusIds(normalizeWorkoutFocus(workout.workout_focus))
+                                  setFocusError(null)
+                                  setIsEditingFocus(false)
+                                }}
+                                disabled={isSavingFocus}
+                                className="flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[10px] text-white/60 hover:bg-white/15 transition-colors disabled:opacity-50"
+                              >
+                                <X className="h-3 w-3" />
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {normalizeWorkoutFocus(workout.workout_focus).slice(0, 3).map((focus, index) => (
+                              <span
+                                key={`${focus}-${index}`}
+                                className="text-[9px] px-1.5 py-0 rounded-full bg-cyan-500/20 text-cyan-300 capitalize"
+                              >
+                                {focus}
                               </span>
-                            );
-                          });
-                        })()}
+                            ))}
+                            {normalizeWorkoutFocus(workout.workout_focus).length === 0 && (
+                              <span className="text-[9px] text-white/50">No focus set</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

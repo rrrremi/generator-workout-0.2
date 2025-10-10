@@ -6,7 +6,7 @@ export async function PUT(request: NextRequest) {
   try {
     // Get the request body
     const body = await request.json();
-    const { id, name, target_date, status } = body;
+    const { id, name, target_date, status, workout_focus } = body;
     
     // Validate inputs
     if (!id) {
@@ -82,6 +82,28 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     
+    // Validate workout_focus if provided
+    let normalizedWorkoutFocus: string[] | undefined;
+    if (workout_focus !== undefined) {
+      if (!Array.isArray(workout_focus)) {
+        return NextResponse.json({ error: 'workout_focus must be an array of strings' }, { status: 400 });
+      }
+
+      const cleaned = workout_focus
+        .map((item: unknown) => typeof item === 'string' ? item.trim().toLowerCase() : null)
+        .filter((item: string | null): item is string => !!item);
+
+      if (cleaned.length === 0) {
+        return NextResponse.json({ error: 'Select at least one focus type' }, { status: 400 });
+      }
+
+      if (cleaned.length > 3) {
+        return NextResponse.json({ error: 'You can select up to 3 focus types' }, { status: 400 });
+      }
+
+      normalizedWorkoutFocus = Array.from(new Set(cleaned));
+    }
+
     // Update the workout
     const updateData: any = {};
     if (name !== undefined) {
@@ -122,6 +144,10 @@ export async function PUT(request: NextRequest) {
 
     if (normalizedStatus !== 'completed') {
       updateData.status = computeDerivedStatus();
+    }
+
+    if (normalizedWorkoutFocus !== undefined) {
+      updateData.workout_focus = normalizedWorkoutFocus;
     }
     
     const { data: updatedWorkout, error: updateError } = await supabase

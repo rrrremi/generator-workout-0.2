@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { calculateWorkoutSummary } from '@/lib/exercises/operations';
+import { deriveMuscleFocusFromExercises } from '@/lib/workouts/muscleFocus';
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,13 +119,20 @@ export async function POST(request: NextRequest) {
 
     const updatedExercises = [...currentExercises, newExercise];
 
+    const {
+      muscleFocus: nextMuscleFocus,
+      muscleGroupsTargeted: nextMuscleGroups
+    } = deriveMuscleFocusFromExercises(updatedExercises);
+
     const { error: jsonbUpdateError } = await supabase
       .from('workouts')
       .update({
         workout_data: {
           ...workout.workout_data,
           exercises: updatedExercises
-        }
+        },
+        muscle_focus: nextMuscleFocus,
+        muscle_groups_targeted: nextMuscleGroups
       })
       .eq('id', workoutId);
 

@@ -5,6 +5,7 @@ import { WorkoutGenerationRequest } from '@/types/workout';
 import { findOrCreateExercise } from '@/lib/exercises/database';
 import { linkExerciseToWorkout, calculateWorkoutSummary } from '@/lib/exercises/operations';
 import { sanitizeSpecialInstructions, sanitizeWorkoutName } from '@/lib/utils/sanitize';
+import { deriveMuscleFocusFromExercises } from '@/lib/workouts/muscleFocus';
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -77,14 +78,6 @@ export async function POST(request: NextRequest) {
       requestData.specialInstructions = sanitizeSpecialInstructions(requestData.specialInstructions);
     }
     
-    // Handle regenerate mode: add excluded exercises to special instructions
-    if (requestData.excludeExercises && requestData.excludeExercises.length > 0) {
-      const excludeInstruction = `\n\nIMPORTANT: Generate DIFFERENT exercises. DO NOT use any of these exercises:\n${requestData.excludeExercises.map(ex => `- ${ex}`).join('\n')}\n\nProvide SUBSTITUTE exercises that target the same muscle groups from different angles, grips, or equipment. Maintain similar difficulty and intensity.`;
-      const combined = (requestData.specialInstructions || '') + excludeInstruction;
-      // Truncate to 140 characters (current database constraint)
-      requestData.specialInstructions = combined.length > 140 ? combined.substring(0, 137) + '...' : combined;
-    }
-    
     // Final safety check: ensure specialInstructions doesn't exceed 140 chars
     if (requestData.specialInstructions && requestData.specialInstructions.length > 140) {
       requestData.specialInstructions = requestData.specialInstructions.substring(0, 137) + '...';
@@ -148,6 +141,20 @@ export async function POST(request: NextRequest) {
       // Sanitize workout name from AI response
       const workoutName = sanitizeWorkoutName(result.data.name);
 
+      // Derive muscle focus from generated exercises, fallback to user selection if empty
+      const {
+        muscleFocus: derivedMuscleFocus,
+        muscleGroupsTargeted: derivedMuscleGroups
+      } = deriveMuscleFocusFromExercises(result.data.exercises);
+
+      const normalizedMuscleFocus = (derivedMuscleFocus.length > 0
+        ? derivedMuscleFocus
+        : requestData.muscleFocus) ?? [];
+
+      const muscleGroupsTargeted = normalizedMuscleFocus.length > 0
+        ? normalizedMuscleFocus.join(', ')
+        : derivedMuscleGroups;
+
       // Create workout in database - ONLY include fields that are definitely in the schema
       // Track regeneration metadata in raw_ai_response
       const rawResponseWithMetadata = requestData.excludeExercises && requestData.excludeExercises.length > 0
@@ -162,7 +169,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         name: workoutName,
         total_duration_minutes: result.data.total_duration_minutes || 30,
-        muscle_groups_targeted: requestData.muscleFocus.join(', '),
+        muscle_groups_targeted: muscleGroupsTargeted,
         joint_groups_affected: result.data.joint_groups_affected || 'Multiple joints',
         equipment_needed: result.data.equipment_needed || 'Bodyweight',
         workout_data: result.data,
@@ -172,7 +179,7 @@ export async function POST(request: NextRequest) {
         completion_tokens: result.usage?.completionTokens,
         generation_time_ms: result.generationTimeMs,
         parse_attempts: result.parseAttempts || 1,
-        muscle_focus: requestData.muscleFocus,
+        muscle_focus: normalizedMuscleFocus,
         workout_focus: requestData.workoutFocus?.length ? requestData.workoutFocus : ['hypertrophy'],
         exercise_count: requestData.exerciseCount,
         special_instructions: requestData.specialInstructions
