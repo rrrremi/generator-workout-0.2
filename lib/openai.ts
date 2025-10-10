@@ -17,10 +17,10 @@ const initializeOpenAI = () => {
     // Get the API key from environment
     const apiKey = process.env.OPENAI_API_KEY;
     
-    // Log the API key prefix for debugging (safely)
-    console.log('API key prefix:', apiKey?.substring(0, 7) + '...');
-    console.log('API key length:', apiKey?.length);
-    console.log('Using OpenAI model:', DEFAULT_OPENAI_MODEL);
+    // Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Using OpenAI model:', DEFAULT_OPENAI_MODEL);
+    }
     
     // For OpenAI v4, we need to use a standard API key (sk-*) not a project key (sk-proj-*)
     // If you're using a project key, you need to get a standard API key from your OpenAI account
@@ -262,14 +262,16 @@ export async function generateWorkout(
   
   try {
     // Diagnostics: the following log helps trace runtime parameters for debugging
-    console.log('Starting workout generation with parameters:', {
-      muscleFocus: requestData.muscleFocus,
-      workoutFocus: requestData.workoutFocus,
-      exerciseCount: requestData.exerciseCount,
-      specialInstructionsLength: requestData.specialInstructions?.length || 0,
-      retry,
-      useExerciseDatabase
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Starting workout generation with parameters:', {
+        muscleFocus: requestData.muscleFocus,
+        workoutFocus: requestData.workoutFocus,
+        exerciseCount: requestData.exerciseCount,
+        specialInstructionsLength: requestData.specialInstructions?.length || 0,
+        retry,
+        useExerciseDatabase
+      });
+    }
 
     // Build the final prompt string using the helper above
     const prompt = generateWorkoutPrompt(
@@ -282,21 +284,27 @@ export async function generateWorkout(
     );
     
     // Debug log
-    console.log('Sending prompt to OpenAI:', prompt.substring(0, 100) + '...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Sending prompt to OpenAI:', prompt.substring(0, 100) + '...');
+    }
     
     // Heuristic: increase max_tokens proportionally to requested exercise count
     const baseTokens = 1000;
     const tokensPerExercise = 200;
     const maxTokens = Math.min(4000, baseTokens + (requestData.exerciseCount * tokensPerExercise));
     
-    console.log(`Using max_tokens=${maxTokens} for ${requestData.exerciseCount} exercises`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Using max_tokens=${maxTokens} for ${requestData.exerciseCount} exercises`);
+    }
     
     // Sanity-check: the singleton client should have been created above
     if (!openai) {
       throw new Error('OpenAI client is not initialized');
     }
 
-    console.log('Attempting to call OpenAI API...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Attempting to call OpenAI API...');
+    }
     
     // Make the OpenAI call with a timeout to avoid hanging the request on network issues
     let response: any;
@@ -314,7 +322,9 @@ export async function generateWorkout(
           setTimeout(() => reject(new Error('OpenAI API timeout')), 30000)
         )
       ]);
-      console.log('Successfully received response from OpenAI');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Successfully received response from OpenAI');
+      }
     } catch (apiError) {
       console.error('Error calling OpenAI API:', apiError);
       if (apiError instanceof Error) {
@@ -338,7 +348,9 @@ export async function generateWorkout(
         // First attempt: parse the entire response
         parsedData = JSON.parse(jsonStr);
       } catch (parseError) {
-        console.log('First parse attempt failed, trying to extract JSON...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('First parse attempt failed, trying to extract JSON...');
+        }
         
         // Second attempt: try to extract JSON from the response using regex
         const jsonMatch = responseText.match(/\{[\s\S]*\}/m);
@@ -346,7 +358,9 @@ export async function generateWorkout(
           // Third attempt: look for code blocks that might contain JSON
           const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
           if (codeBlockMatch && codeBlockMatch[1]) {
-            console.log('Found JSON in code block, attempting to parse...');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Found JSON in code block, attempting to parse...');
+            }
             jsonStr = codeBlockMatch[1].trim();
             parsedData = JSON.parse(jsonStr);
           } else {
@@ -364,12 +378,16 @@ export async function generateWorkout(
       
       // If validation fails with exercise database fields, try validating without them
       if (!validationResult.valid && useExerciseDatabase) {
-        console.log(`Validation failed with exercise database fields: ${validationResult.error}`);
-        console.log('Trying validation without exercise database fields...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Validation failed with exercise database fields: ${validationResult.error}`);
+          console.log('Trying validation without exercise database fields...');
+        }
         validationResult = validateWorkoutData(parsedData, requestData.exerciseCount, false);
         
         if (validationResult.valid) {
-          console.log('Validation succeeded without exercise database fields');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Validation succeeded without exercise database fields');
+          }
         }
       }
       
@@ -406,7 +424,9 @@ export async function generateWorkout(
       }
       
       // Retry once with stricter prompt advice if parsing/validation failed the first time
-      console.log('Retrying with more explicit prompt...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Retrying with more explicit prompt...');
+      }
       parseAttempts++;
       return generateWorkout(requestData, true, useExerciseDatabase);
     }

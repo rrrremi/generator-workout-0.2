@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -18,17 +18,22 @@ import {
   Target
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
+
+interface UserWithProfile extends SupabaseUser {
+  full_name?: string
+}
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<UserWithProfile | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const supabase = createClient()
 
-  // Function to load user data
-  const loadUser = async () => {
+  // Memoized function to load user data
+  const loadUser = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
@@ -48,22 +53,22 @@ export default function Header() {
       setIsAdmin(profile?.is_admin || false)
     } else {
       setUser(null)
+      setIsAdmin(false)
     }
-  }
+  }, [supabase])
 
   // Initial load of user data
   useEffect(() => {
     loadUser()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Intentionally omitting loadUser to only run on mount
+  }, [loadUser])
   
   // Set up subscription to profile changes
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
     
     // Subscribe to changes on the profiles table for this user
     const subscription = supabase
-      .channel('profile-changes')
+      .channel(`profile-changes-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -73,7 +78,9 @@ export default function Header() {
           filter: `id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Profile updated:', payload)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Profile updated:', payload)
+          }
           // Reload user data when profile is updated
           loadUser()
         }
@@ -83,8 +90,7 @@ export default function Header() {
     return () => {
       supabase.removeChannel(subscription)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]) // Intentionally omitting supabase and loadUser
+  }, [user?.id, supabase, loadUser])
   
   // Reload user data when navigating back from profile edit page
   useEffect(() => {
@@ -92,8 +98,7 @@ export default function Header() {
     if (pathname === '/protected/profile' && user) {
       loadUser()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]) // Intentionally omitting user and loadUser
+  }, [pathname, user, loadUser])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -129,12 +134,14 @@ export default function Header() {
 
   // Debug user state with more details
   useEffect(() => {
-    console.log('Auth state:', { 
-      user: user ? { id: user.id, email: user.email } : null, 
-      isAdmin, 
-      isLoggedIn: !!user,
-      pathname
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Auth state:', { 
+        user: user ? { id: user.id, email: user.email } : null, 
+        isAdmin, 
+        isLoggedIn: !!user,
+        pathname
+      })
+    }
   }, [user, isAdmin, pathname])
 
   return (

@@ -38,36 +38,36 @@ export default function DeleteExerciseModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md rounded-lg border border-white/10 bg-black/90 backdrop-blur-xl shadow-2xl"
+            className="relative w-full max-w-md rounded-lg border border-transparent bg-white/5 backdrop-blur-xl shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 p-4">
+            <div className="flex items-center justify-between border-b border-transparent p-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
-                  <Trash2 className="h-4 w-4 text-red-400" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/10">
+                  <Trash2 className="h-3.5 w-3.5 text-red-400" strokeWidth={1.5} />
                 </div>
-                <h3 className="text-sm font-semibold text-white">Delete Exercise</h3>
+                <h3 className="text-sm font-light text-white/90">Delete Exercise</h3>
               </div>
               {!isDeleting && (
                 <button
                   onClick={onCancel}
                   className="rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white/90 transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </button>
               )}
             </div>
 
             {/* Content */}
             <div className="p-4">
-              <p className="text-sm text-white/80">
-                Are you sure you want to delete <span className="font-semibold text-white">"{exerciseName}"</span> from this workout?
+              <p className="text-sm font-light text-white/80">
+                Are you sure you want to delete <span className="font-normal text-white/90">"{exerciseName}"</span> from this workout?
               </p>
               
               {isLastExercise && (
-                <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-                  <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-200">
+                <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
+                  <p className="text-xs font-light text-amber-200/90">
                     This is the last exercise in the workout. The workout will be empty after deletion.
                   </p>
                 </div>
@@ -75,18 +75,18 @@ export default function DeleteExerciseModal({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 border-t border-white/10 p-4">
+            <div className="flex items-center justify-end gap-2 border-t border-transparent p-3">
               <button
                 onClick={onCancel}
                 disabled={isDeleting}
-                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
                 disabled={isDeleting}
-                className="rounded-lg border border-red-500/50 bg-red-500/20 px-4 py-2 text-xs font-medium text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-light text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 {isDeleting ? (
                   <>
@@ -98,7 +98,7 @@ export default function DeleteExerciseModal({
                   </>
                 ) : (
                   <>
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                     Delete
                   </>
                 )}

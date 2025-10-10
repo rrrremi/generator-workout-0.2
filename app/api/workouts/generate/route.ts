@@ -4,6 +4,7 @@ import { generateWorkout } from '@/lib/openai';
 import { WorkoutGenerationRequest } from '@/types/workout';
 import { findOrCreateExercise } from '@/lib/exercises/database';
 import { linkExerciseToWorkout, calculateWorkoutSummary } from '@/lib/exercises/operations';
+import { sanitizeSpecialInstructions, sanitizeWorkoutName } from '@/lib/utils/sanitize';
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -34,25 +35,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Check rate limit
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - RATE_LIMIT_WINDOW);
+    // Check if user is admin (admins bypass rate limits)
+    let isAdmin = false;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      
+      isAdmin = profile?.is_admin || false;
+    } catch (error) {
+      // If admin check fails, continue with rate limiting (fail closed)
+      console.error('Error checking admin status:', error);
+    }
     
-    const { count } = await supabase
-      .from('workouts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', yesterday.toISOString());
-    
-    if (count && count >= RATE_LIMIT) {
-      return NextResponse.json(
-        { error: `Rate limit exceeded. You can generate up to ${RATE_LIMIT} workouts per day.` },
-        { status: 429 }
-      );
+    // Apply rate limit only for non-admin users
+    if (!isAdmin) {
+      const now = new Date();
+      const yesterday = new Date(now.getTime() - RATE_LIMIT_WINDOW);
+      
+      const { count } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', yesterday.toISOString());
+      
+      if (count && count >= RATE_LIMIT) {
+        return NextResponse.json(
+          { error: `Rate limit exceeded. You can generate up to ${RATE_LIMIT} workouts per day.` },
+          { status: 429 }
+        );
+      }
     }
     
     // Parse request body
     const requestData: WorkoutGenerationRequest = await request.json();
+    
+    // Sanitize user input immediately
+    if (requestData.specialInstructions) {
+      requestData.specialInstructions = sanitizeSpecialInstructions(requestData.specialInstructions);
+    }
     
     // Validate request
     if (!requestData.muscleFocus || requestData.muscleFocus.length === 0) {
@@ -69,8 +92,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Validate exercise count
+    if (requestData.exerciseCount < 1 || requestData.exerciseCount > 10) {
+      return NextResponse.json(
+        { error: 'Exercise count must be between 1 and 10' },
+        { status: 400 }
+      );
+    }
+    
     // Generate workout
-    console.log('Generating workout with parameters:', JSON.stringify(requestData));
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Generating workout with parameters:', JSON.stringify(requestData));
+    }
     const result = await generateWorkout(requestData);
     
     if (!result.success || !result.data) {
@@ -81,18 +114,18 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log('Workout generated successfully');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Workout generated successfully');
+    }
     
     try {
-      // Respect special instructions length constraint (<= 140)
-      const sanitizedInstructions = requestData.specialInstructions
-        ? requestData.specialInstructions.slice(0, 140)
-        : undefined;
+      // Sanitize workout name from AI response
+      const workoutName = sanitizeWorkoutName(result.data.name);
 
       // Create workout in database - ONLY include fields that are definitely in the schema
       const insertData = {
         user_id: user.id,
-        name: result.data.name || `Workout ${new Date().toLocaleDateString()}`,
+        name: workoutName,
         total_duration_minutes: result.data.total_duration_minutes || 30,
         muscle_groups_targeted: requestData.muscleFocus.join(', '),
         joint_groups_affected: result.data.joint_groups_affected || 'Multiple joints',
@@ -107,10 +140,12 @@ export async function POST(request: NextRequest) {
         muscle_focus: requestData.muscleFocus,
         workout_focus: requestData.workoutFocus?.length ? requestData.workoutFocus : ['hypertrophy'],
         exercise_count: requestData.exerciseCount,
-        special_instructions: sanitizedInstructions
+        special_instructions: requestData.specialInstructions
       };
       
-      console.log('Attempting to insert workout with fields:', JSON.stringify(insertData, null, 2));
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Attempting to insert workout with fields:', JSON.stringify(insertData, null, 2));
+      }
       
       const { data: workout, error: workoutError } = await supabase
         .from('workouts')
@@ -126,7 +161,9 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      console.log(`Workout created with ID: ${workout.id}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Workout created with ID: ${workout.id}`);
+      }
       
       // Process exercises
       const exercisePromises = [];
@@ -147,11 +184,15 @@ export async function POST(request: NextRequest) {
             // movement_type is defined in the type but not used in the database function
           });
           
-          console.log(`${created ? 'Created' : 'Found'} exercise: ${exercise.name} (${exercise.id})`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`${created ? 'Created' : 'Found'} exercise: ${exercise.name} (${exercise.id})`);
+          }
           
           // Sanitize and limit the rationale field
           let sanitizedRationale: string | undefined = undefined;
-          console.log('Original rationale:', exerciseData.rationale);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Original rationale:', exerciseData.rationale);
+          }
           
           try {
             if (exerciseData.rationale) {
@@ -191,7 +232,9 @@ export async function POST(request: NextRequest) {
         
         // Wait for all exercise links to be created
         await Promise.all(exercisePromises);
-        console.log('All exercises linked to workout');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('All exercises linked to workout');
+        }
         
         // Calculate workout summary
         await calculateWorkoutSummary(workout.id);

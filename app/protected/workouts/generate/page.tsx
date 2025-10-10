@@ -10,20 +10,19 @@ import { createClient } from '@/lib/supabase/client';
 import { muscleGroups, mapToSimplifiedCategories } from '@/lib/data/muscleGroups';
 import { motion } from 'framer-motion'
 import { Dumbbell, Sparkles, Play, Settings, ChevronLeft, Zap, Target, Clock, BarChart3, CheckCircle, Activity, RefreshCw } from 'lucide-react'
-import { getRandomTooltip } from '@/lib/tooltips/workoutFocusTooltips';
 import SimilarWorkoutSuggestions from '@/components/workout/SimilarWorkoutSuggestions';
 
 // Dynamically import the ProgressiveWorkoutGeneration component
 const ProgressiveWorkoutGeneration = dynamic(
   () => import('@/components/ui/ProgressiveWorkoutGeneration'),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8 max-w-md w-full mx-4">
+        <div className="bg-white/5 backdrop-blur-xl rounded-lg border border-transparent p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-fuchsia-400/30 border-t-fuchsia-400 animate-spin"></div>
-            <h3 className="text-xl font-semibold text-white mb-2">Loading...</h3>
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full border-2 border-white/20 border-t-white/90 animate-spin"></div>
+            <h3 className="text-lg font-light text-white/90 mb-2">Loading...</h3>
           </div>
         </div>
       </div>

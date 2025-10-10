@@ -36,7 +36,6 @@ export default function ExerciseContextMenu({
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.15 }}
             className="absolute z-50 mt-1 rounded-lg border border-white/10 bg-black/90 backdrop-blur-xl shadow-xl overflow-hidden"
-            style={{ minWidth: '180px' }}
           >
             <button
               onClick={(e) => {
@@ -44,10 +43,10 @@ export default function ExerciseContextMenu({
                 onDelete()
                 onClose()
               }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+              className="w-full flex items-center justify-center sm:justify-start gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>Delete Exercise</span>
+              <span className="hidden sm:inline">Delete</span>
             </button>
           </motion.div>
         </>

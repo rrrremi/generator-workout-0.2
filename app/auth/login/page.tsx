@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -18,35 +18,52 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const supabase = createClient()
 
+  // Check if already logged in
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.push('/protected/workouts')
+      }
+    }
+    checkUser()
+  }, [router, supabase])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password
       })
-      
-      // Update session if remember me is checked
-      if (rememberMe && !error) {
-        await supabase.auth.refreshSession({
-          refresh_token: (await supabase.auth.getSession()).data.session?.refresh_token || ''
-        })
-      }
 
       if (error) {
-        setError(error.message)
+        // Provide user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please verify your email address before signing in.')
+        } else {
+          setError(error.message)
+        }
+        setLoading(false)
         return
       }
 
-      router.push('/protected/workouts')
-      router.refresh()
+      if (data.session) {
+        // Successfully logged in, use router for smoother navigation
+        router.push('/protected/workouts')
+        router.refresh()
+      } else {
+        setError('Login failed. Please try again.')
+        setLoading(false)
+      }
     } catch (err) {
-      setError('An unexpected error occurred')
+      setError('An unexpected error occurred. Please try again.')
       console.error(err)
-    } finally {
       setLoading(false)
     }
   }
@@ -61,7 +78,7 @@ export default function Login() {
         <div className="text-center mt-2">
           <p className="text-xs text-white/60">
             Don&apos;t have an account?{' '}
-            <Link href="/auth/signup" className="text-fuchsia-400 font-medium hover:text-fuchsia-300 transition-colors">
+            <Link href="/auth/signup" className="text-white/90 font-light hover:text-white transition-colors underline">
               Create account
             </Link>
           </p>
@@ -103,7 +120,7 @@ export default function Login() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-3 w-3 rounded bg-white/5 border-transparent text-fuchsia-500 focus:ring-fuchsia-500/30"
+              className="h-3 w-3 rounded bg-white/5 border-white/20 text-white/90 focus:ring-white/30"
             />
             <label htmlFor="remember-me" className="ml-1.5 block text-xs text-white/70">
               Remember me
@@ -113,7 +130,7 @@ export default function Login() {
           <div>
             <Link 
               href="/auth/reset-password" 
-              className="text-xs text-fuchsia-400 hover:text-fuchsia-300 transition-colors"
+              className="text-xs text-white/60 hover:text-white/90 transition-colors font-light"
             >
               Forgot password?
             </Link>
@@ -125,9 +142,10 @@ export default function Login() {
           isLoading={loading}
           variant="primary"
           fullWidth
-          leftIcon={<LogIn size={14} />}
-          className="mt-1 py-1.5"
+          leftIcon={!loading ? <LogIn size={14} /> : undefined}
+          className="mt-1 py-2"
           size="sm"
+          disabled={loading || !email || !password}
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </Button>

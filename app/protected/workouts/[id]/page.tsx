@@ -192,9 +192,9 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
       setWorkout(data.workout);
       setIsEditingName(false);
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating workout name:', error);
-      setNameError(error.message || 'Failed to update workout name');
+      setNameError(error instanceof Error ? error.message : 'Failed to update workout name');
     } finally {
       setIsSavingName(false);
     }
@@ -223,8 +223,8 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
       }
 
       setWorkout(data.workout)
-    } catch (error: any) {
-      setTargetDateError(error.message || 'Failed to update target date')
+    } catch (error) {
+      setTargetDateError(error instanceof Error ? error.message : 'Failed to update target date')
     } finally {
       setIsSavingTargetDate(false)
     }
@@ -251,9 +251,9 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
       setTimeout(() => {
         router.refresh()
       }, 100)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error deleting workout:', error)
-      setError(error.message || 'Error deleting workout')
+      setError(error instanceof Error ? error.message : 'Error deleting workout')
       setIsDeleting(false)
 
       // Show error for 3 seconds, then allow retry
@@ -384,11 +384,11 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
       await refreshCompletionState()
       await recomputeWorkoutStatus()
       
-    } catch (error: any) {
-      console.error('Error deleting exercise:', error)
+    } catch (err) {
+      console.error('Error deleting exercise:', err)
       // Rollback on error
       setWorkout(workout)
-      setError(error.message || 'Failed to delete exercise')
+      setError(err instanceof Error ? err.message : 'Failed to delete exercise')
       setTimeout(() => setError(null), 3000)
     } finally {
       setIsDeletingExercise(false)
@@ -436,8 +436,8 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
         } else {
           setError('Workout not found')
         }
-      } catch (error: any) {
-        setError(error.message || 'An error occurred while fetching the workout')
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'An error occurred while fetching the workout')
       } finally {
         setLoading(false)
       }

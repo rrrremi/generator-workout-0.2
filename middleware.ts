@@ -80,7 +80,7 @@ export async function middleware(request: NextRequest) {
   
   // Redirect authenticated users away from auth pages
   if (user && request.nextUrl.pathname.startsWith('/auth')) {
-    return NextResponse.redirect(new URL('/protected/dashboard', request.url))
+    return NextResponse.redirect(new URL('/protected/workouts', request.url))
   }
 
   return response

@@ -24,7 +24,7 @@ export default function SignUp() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -36,15 +36,22 @@ export default function SignUp() {
 
       if (error) {
         setError(error.message)
+        setLoading(false)
         return
       }
 
-      // Success - redirect to login with message
-      router.push('/auth/login')
+      if (data.session) {
+        // Successfully signed up and logged in, redirect
+        router.push('/protected/workouts')
+        router.refresh()
+      } else {
+        // Email confirmation required
+        setError('Please check your email to confirm your account')
+        setLoading(false)
+      }
     } catch (err) {
       setError('An unexpected error occurred')
       console.error(err)
-    } finally {
       setLoading(false)
     }
   }
@@ -59,7 +66,7 @@ export default function SignUp() {
         <div className="text-center mt-2">
           <p className="text-xs text-white/60">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-fuchsia-400 font-medium hover:text-fuchsia-300 transition-colors">
+            <Link href="/auth/login" className="text-white/90 font-light hover:text-white transition-colors underline">
               Sign in
             </Link>
           </p>

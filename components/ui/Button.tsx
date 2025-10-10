@@ -22,12 +22,12 @@ export default function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'relative inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus-ring'
+  const baseStyles = 'relative inline-flex items-center justify-center font-light rounded-lg transition-colors'
   
   const variantStyles = {
-    primary: 'bg-gradient-to-r from-fuchsia-500 to-cyan-400 text-white hover:brightness-110 active:brightness-90',
+    primary: 'bg-white/10 text-white/90 border border-white/20 hover:bg-white/20 active:bg-white/5',
     secondary: 'bg-white/10 text-white border border-transparent hover:bg-white/20 active:bg-white/5',
-    outline: 'bg-transparent text-white border border-transparent hover:bg-white/5 active:bg-transparent',
+    outline: 'bg-transparent text-white border border-white/20 hover:bg-white/5 active:bg-transparent',
     ghost: 'bg-transparent text-white/80 hover:bg-white/10 hover:text-white active:bg-white/5',
   }
   

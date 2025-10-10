@@ -533,16 +533,16 @@ export default function WorkoutsPage() {
                       {/* Muscle Focus Filters */}
                       {muscleOptions.length > 0 && (
                         <div>
-                          <div className="mb-1 text-xs text-white/70">Muscle Focus</div>
+                          <div className="mb-1 text-xs text-white/70 font-light">Muscle Focus</div>
                           <div className="flex flex-wrap gap-1.5">
                             {muscleOptions.map((option) => (
                               <button
                                 key={option.id}
                                 onClick={() => toggleMuscleFilter(option.id)}
-                                className={`rounded-full border border-transparent px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-light transition-colors ${
                                   selectedMuscles.includes(option.id)
-                                    ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                                    : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                    ? 'border-white/40 bg-white/20 text-white/90'
+                                    : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
                                 }`}
                               >
                                 {option.label}
@@ -554,16 +554,16 @@ export default function WorkoutsPage() {
                       {/* Workout Focus Filters */}
                       {focusOptions.length > 0 && (
                         <div>
-                          <div className="mb-1 text-xs text-white/70">Workout Focus</div>
+                          <div className="mb-1 text-xs text-white/70 font-light">Workout Focus</div>
                           <div className="flex flex-wrap gap-1.5">
                             {focusOptions.map((option) => (
                               <button
                                 key={option.id}
                                 onClick={() => toggleFocusFilter(option.id)}
-                                className={`rounded-full border border-transparent px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-light transition-colors ${
                                   selectedFocus.includes(option.id)
-                                    ? 'bg-cyan-500/20 text-cyan-200'
-                                    : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                    ? 'border-white/40 bg-white/20 text-white/90'
+                                    : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
                                 }`}
                               >
                                 {option.label}
@@ -574,16 +574,16 @@ export default function WorkoutsPage() {
                       )}
                       {statusOptions.length > 0 && (
                         <div>
-                          <div className="mb-1 text-xs text-white/70">Status</div>
+                          <div className="mb-1 text-xs text-white/70 font-light">Status</div>
                           <div className="flex flex-wrap gap-1.5">
                             {statusOptions.map((option) => (
                               <button
                                 key={option.id}
                                 onClick={() => toggleStatusFilter(option.id)}
-                                className={`rounded-full border border-transparent px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                className={`rounded-full border px-2 py-0.5 text-[10px] font-light transition-colors ${
                                   selectedStatuses.includes(option.id)
-                                    ? 'bg-emerald-500/20 text-emerald-200'
-                                    : 'bg-white/5 text-white/70 hover:bg-white/10'
+                                    ? 'border-white/40 bg-white/20 text-white/90'
+                                    : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'
                                 }`}
                               >
                                 {option.label}
@@ -657,46 +657,44 @@ export default function WorkoutsPage() {
                               </div>
                             </div>
 
-                            {isAdmin && (
-                              <div className="flex-shrink-0 flex items-center">
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    openDeleteModal(workout.id)
-                                  }}
-                                  className="p-1.5 rounded-md hover:bg-red-500/10 text-white/50 hover:text-red-400 transition-colors"
-                                  aria-label="Delete workout"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex-shrink-0 flex items-center">
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openDeleteModal(workout.id)
+                                }}
+                                className="p-1.5 rounded-md hover:bg-red-500/10 text-white/50 hover:text-red-400 transition-colors"
+                                aria-label="Delete workout"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )
                     })
                       ) : (
-                        <div className="flex flex-col items-center justify-center rounded-lg border border-transparent bg-white/5 p-6 text-center text-white/60">
-                          <Dumbbell className="mb-2 h-6 w-6 text-white/30" />
-                          <p className="text-sm font-medium">No workouts match your filters</p>
-                          <p className="text-xs text-white/40 mt-1">Try adjusting your search or filters</p>
+                        <div className="flex flex-col items-center justify-center rounded-lg border border-transparent bg-white/5 p-8 text-center">
+                          <Search className="mb-2 h-6 w-6 text-white/40" strokeWidth={1.5} />
+                          <p className="text-sm font-light text-white/80">No workouts match your filters</p>
+                          <p className="text-xs text-white/50 mt-1 font-light">Try adjusting your search or filters</p>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                    <Dumbbell className="h-5 w-5 text-white/30" />
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                    <Dumbbell className="h-8 w-8 text-white/40" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-sm font-medium text-white/80 mb-1">No workouts yet</h3>
-                  <p className="text-xs text-white/50 max-w-xs mb-3">
-                    Generate your first workout
+                  <h3 className="text-base font-light text-white/90 mb-1">No workouts yet</h3>
+                  <p className="text-sm text-white/60 max-w-xs mb-4 font-light">
+                    Start your fitness journey by generating your first AI-powered workout
                   </p>
                   <Link href="/protected/workouts/generate">
-                    <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-gradient-to-r from-fuchsia-500/20 to-cyan-400/20 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-xl hover:bg-white/10 transition-colors">
-                      <Sparkles className="h-3.5 w-3.5" />
+                    <button className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-light text-white/90 hover:bg-white/20 transition-colors">
+                      <Sparkles className="h-4 w-4" strokeWidth={1.5} />
                       Generate Workout
                     </button>
                   </Link>

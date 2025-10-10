@@ -11,15 +11,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, icon, className = '', ...props }, ref) => {
     const [isFocused, setIsFocused] = useState(false)
     
-    const baseStyles = 'px-2.5 py-1.5 bg-white/5 border border-transparent rounded-md text-white placeholder:text-white/40 focus:outline-none focus:border-fuchsia-500/50 w-full transition-all duration-200 text-sm'
+    const baseStyles = 'px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white/90 placeholder:text-white/30 focus:outline-none focus:border-white/30 w-full transition-colors text-sm font-light backdrop-blur-xl'
     const errorStyles = error ? 'border-red-500/50 focus:border-red-500/70' : ''
-    const focusStyles = isFocused ? 'border-fuchsia-500/50 shadow-[0_0_0_1px_rgba(217,70,219,0.1)]' : ''
+    const focusStyles = ''
     const combinedClassName = `${baseStyles} ${errorStyles} ${focusStyles} ${className}`
     
     return (
       <div className="w-full space-y-1">
         {label && (
-          <label htmlFor={props.id} className="block text-xs font-medium text-white/80 mb-0.5">
+          <label htmlFor={props.id} className="block text-xs font-light text-white/70 mb-1.5">
             {label}
           </label>
         )}
