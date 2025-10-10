@@ -1,28 +1,178 @@
 'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Dumbbell, Sparkles, Play, Target, BarChart3, Clock, Calendar, Trash2, ArrowLeft, RefreshCw, Info, Zap, Activity, Pencil, Plus } from 'lucide-react'
+import { Dumbbell, Sparkles, Play, Target, BarChart3, Clock, Calendar, Trash2, ArrowLeft, RefreshCw, Info, Zap, Activity, Pencil, Plus, Copy, Check, X, GripVertical } from 'lucide-react'
 import InlineEdit from '@/components/ui/InlineEdit'
 import ExerciseVideoButton from '@/components/workout/ExerciseVideoButton'
 import { SkeletonWorkoutDetail } from '@/components/ui/Skeleton'
 import { Workout } from '@/types/workout'
 import DeleteWorkoutModal from '@/components/workout/DeleteWorkoutModal'
-import ExerciseContextMenu from '@/components/workout/ExerciseContextMenu'
 import DeleteExerciseModal from '@/components/workout/DeleteExerciseModal'
 import WorkoutRating from '@/components/workout/WorkoutRating'
 import ExercisePicker from '@/components/workout/ExercisePicker'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+// Sortable Exercise Item Component
+function SortableExerciseItem({
+  exercise,
+  index,
+  isCompleted,
+  selectedExerciseIndex,
+  totalExercises,
+  onExerciseClick,
+  onExerciseKeyDown,
+  onDeleteClick,
+}: {
+  exercise: any
+  index: number
+  isCompleted: boolean
+  selectedExerciseIndex: number | null
+  totalExercises: number
+  onExerciseClick: (index: number, e: React.MouseEvent) => void
+  onExerciseKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, index: number) => void
+  onDeleteClick: (index: number) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `exercise-${index}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isCompleted}
+      onClick={(e) => onExerciseClick(index, e)}
+      onKeyDown={(event) => onExerciseKeyDown(event, index)}
+      initial={{ opacity: 0, x: -5 }}
+      animate={{
+        opacity: isDragging ? 0.5 : 1,
+        x: 0,
+        scale: isCompleted ? 1.01 : 1
+      }}
+      transition={{ delay: 0.05 + index * 0.03 }}
+      className={`relative rounded-md border p-2 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 cursor-pointer ${
+        isCompleted
+          ? 'border-emerald-400/40 bg-emerald-400/10'
+          : 'border-transparent bg-white/5 hover:bg-white/10'
+      } ${selectedExerciseIndex === index ? 'ring-2 ring-white/20' : ''} ${isDragging ? 'z-50 shadow-2xl' : ''}`}
+    >
+      <div className="flex items-center">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="mr-2 cursor-grab active:cursor-grabbing touch-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-4 w-4 text-white/40 hover:text-white/60 transition-colors" />
+        </div>
+        
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] font-light text-white/70">
+            {index + 1}
+          </div>
+          <h4 className={`text-xs font-light ${isCompleted ? 'text-emerald-100' : 'text-white/90'}`}>
+            {exercise.name}
+          </h4>
+        </div>
+        <div className={`flex items-center gap-1.5 text-[10px] ml-3 ${isCompleted ? 'text-emerald-100/80' : 'text-white/70'}`}>
+          <span className="text-white/60">Sets:</span>
+          <span className="font-medium text-white/90">{exercise.sets}</span>
+          <span className="ml-1 text-white/60">Reps:</span>
+          <span className="font-medium text-white/90">{exercise.reps}</span>
+          <span className="ml-1 text-white/60">Rest:</span>
+          <span className="font-medium text-white/90">{exercise.rest_time_seconds}s</span>
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <div
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <ExerciseVideoButton exerciseName={exercise.name} size="small" variant="subtle" />
+          </div>
+          
+          {/* Delete button - appears on click (hidden if last exercise) */}
+          {totalExercises > 1 && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, x: 10 }}
+              animate={{ 
+                opacity: selectedExerciseIndex === index ? 1 : 0,
+                scale: selectedExerciseIndex === index ? 1 : 0.8,
+                x: selectedExerciseIndex === index ? 0 : 10
+              }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeleteClick(index)
+              }}
+              className={`p-1 rounded-md hover:bg-red-500/20 text-red-400 transition-colors ${
+                selectedExerciseIndex === index ? 'pointer-events-auto' : 'pointer-events-none'
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </motion.button>
+          )}
+        </div>
+      </div>
+
+      {exercise.rationale && (
+        <div
+          className={`mt-2 rounded-md border p-1.5 ${
+            isCompleted
+              ? 'border-emerald-400/30 bg-emerald-400/5 text-emerald-100'
+              : 'border-transparent bg-white/5 text-white/80'
+          }`}
+        >
+          <div className="flex items-center gap-1 text-[9px] mb-0.5 uppercase tracking-wider">
+            <Info className="h-2.5 w-2.5" />
+            Tips
+          </div>
+          <p className="text-[10px] leading-snug line-clamp-2">{exercise.rationale}</p>
+        </div>
+      )}
+    </motion.div>
+  )
+}
 
 export default function WorkoutDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const [isSavingName, setIsSavingName] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -30,13 +180,28 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   const [targetDateError, setTargetDateError] = useState<string | null>(null)
   const [completedExercises, setCompletedExercises] = useState<Record<number, { id: string; completed: boolean }>>({})
   const [completionLoaded, setCompletionLoaded] = useState(false)
-  const [contextMenuIndex, setContextMenuIndex] = useState<number | null>(null)
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null)
+  const [selectedExerciseIndex, setSelectedExerciseIndex] = useState<number | null>(null)
   const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<{ index: number; workoutExerciseId: string; name: string } | null>(null)
   const [showDeleteExerciseModal, setShowDeleteExerciseModal] = useState(false)
   const [isDeletingExercise, setIsDeletingExercise] = useState(false)
   const [showExercisePicker, setShowExercisePicker] = useState(false)
+  const [showCopyModal, setShowCopyModal] = useState(false)
+  const [copyWorkoutName, setCopyWorkoutName] = useState('')
+  const [isCopying, setIsCopying] = useState(false)
+  const [clickTimestamps, setClickTimestamps] = useState<Record<number, number>>({})
+  const [isReordering, setIsReordering] = useState(false)
   const supabase = createClient()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const goBack = () => {
     router.push('/protected/workouts')
@@ -267,6 +432,34 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     refreshCompletionState()
   }, [refreshCompletionState])
 
+  // Handle exercise click - detect single click vs double-tap
+  const handleExerciseClick = useCallback((index: number, event: React.MouseEvent) => {
+    event.stopPropagation()
+    
+    const now = Date.now()
+    const lastClick = clickTimestamps[index] || 0
+    const timeDiff = now - lastClick
+    
+    // Double-tap detection (within 710ms)
+    if (timeDiff <= 710 && timeDiff > 0) {
+      // Double-tap detected - toggle completion
+      toggleExerciseCompletion(index)
+      // Clear timestamp
+      setClickTimestamps(prev => ({ ...prev, [index]: 0 }))
+    } else {
+      // Single click - show/hide delete button
+      if (selectedExerciseIndex === index) {
+        // Clicking same exercise - hide delete button
+        setSelectedExerciseIndex(null)
+      } else {
+        // Clicking different exercise - show delete button
+        setSelectedExerciseIndex(index)
+      }
+      // Store timestamp for double-tap detection
+      setClickTimestamps(prev => ({ ...prev, [index]: now }))
+    }
+  }, [clickTimestamps, selectedExerciseIndex])
+
   const toggleExerciseCompletion = useCallback(async (index: number) => {
     if (!completionLoaded) {
       return
@@ -308,7 +501,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
 
     await refreshCompletionState()
     await recomputeWorkoutStatus()
-  }, [completedExercises, params.id, recomputeWorkoutStatus, refreshCompletionState, supabase])
+  }, [completedExercises, completionLoaded, params.id, recomputeWorkoutStatus, refreshCompletionState, supabase])
 
   const handleExerciseKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>, index: number) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -317,32 +510,75 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     }
   }, [toggleExerciseCompletion])
 
-  const handleLongPressStart = useCallback((index: number) => {
-    const timer = setTimeout(() => {
-      setContextMenuIndex(index)
-      if (navigator.vibrate) {
-        navigator.vibrate(50)
-      }
-    }, 500)
-    setLongPressTimer(timer)
-  }, [])
-
-  const handleLongPressEnd = useCallback(() => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer)
-      setLongPressTimer(null)
+  // Click outside to hide delete button
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setSelectedExerciseIndex(null)
     }
-  }, [longPressTimer])
+    
+    if (selectedExerciseIndex !== null) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [selectedExerciseIndex])
 
-  const handleDeleteExerciseClick = useCallback((index: number) => {
-    const workoutExerciseId = completedExercises[index]?.id
+  const handleDeleteExerciseClick = useCallback(async (index: number) => {
+    // Prevent deleting the last exercise
+    if (workout?.workout_data.exercises.length === 1) {
+      setError('Cannot delete the last exercise. A workout must have at least one exercise.')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+    
+    let workoutExerciseId = completedExercises[index]?.id
     const exerciseName = workout?.workout_data.exercises[index]?.name
     
-    if (!workoutExerciseId || !exerciseName) return
+    // If workoutExerciseId is not in completedExercises, fetch it from the database
+    if (!workoutExerciseId) {
+      try {
+        // Fetch all workout_exercises for this workout and find by order_index
+        const { data, error } = await supabase
+          .from('workout_exercises')
+          .select('id, order_index')
+          .eq('workout_id', params.id)
+          .order('order_index')
+        
+        if (error || !data) {
+          console.error('Failed to fetch workout_exercises:', error)
+          setError('Unable to delete exercise. Please refresh the page and try again.')
+          setTimeout(() => setError(null), 3000)
+          return
+        }
+        
+        // Find the exercise with matching order_index
+        const exerciseRow = data.find(row => row.order_index === index)
+        
+        if (!exerciseRow) {
+          console.error('No workout_exercise found with order_index:', index, 'Available:', data)
+          setError('Unable to delete exercise. Please refresh the page and try again.')
+          setTimeout(() => setError(null), 3000)
+          return
+        }
+        
+        workoutExerciseId = exerciseRow.id
+      } catch (err) {
+        console.error('Error fetching workout_exercise ID:', err)
+        setError('Unable to delete exercise. Please refresh the page and try again.')
+        setTimeout(() => setError(null), 3000)
+        return
+      }
+    }
+    
+    if (!workoutExerciseId || !exerciseName) {
+      console.error('Missing data for delete:', { index, workoutExerciseId, exerciseName, completedExercises })
+      setError('Unable to delete exercise. Please refresh the page and try again.')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
     
     setDeleteExerciseTarget({ index, workoutExerciseId, name: exerciseName })
     setShowDeleteExerciseModal(true)
-  }, [completedExercises, workout])
+  }, [completedExercises, workout, params.id, supabase])
 
   const handleDeleteExerciseConfirm = useCallback(async () => {
     if (!deleteExerciseTarget || !workout) return
@@ -417,6 +653,127 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
       setTimeout(() => setError(null), 3000)
     }
   }, [params.id, refreshCompletionState, recomputeWorkoutStatus, supabase])
+
+  const handleRegenerate = useCallback(() => {
+    if (!workout) return
+    
+    // Extract exercise names to exclude
+    const excludeExercises = workout.workout_data.exercises.map(ex => ex.name)
+    
+    // Extract workout parameters
+    const muscleFocus = workout.muscle_focus || []
+    const workoutFocus = workout.workout_focus || ['hypertrophy']
+    const exerciseCount = workout.workout_data.exercises.length
+    
+    // Build query params for generate page
+    const params = new URLSearchParams({
+      muscleFocus: JSON.stringify(muscleFocus),
+      workoutFocus: JSON.stringify(workoutFocus),
+      exerciseCount: exerciseCount.toString(),
+      excludeExercises: JSON.stringify(excludeExercises),
+      regenerate: 'true'
+    })
+    
+    // Navigate to generate page with params
+    router.push(`/protected/workouts/generate?${params.toString()}`)
+  }, [workout, router])
+
+  const handleCopyClick = useCallback(() => {
+    if (!workout) return
+    setCopyWorkoutName(`${workout.name} (Copy)`)
+    setShowCopyModal(true)
+  }, [workout])
+
+  const handleCopyConfirm = useCallback(async () => {
+    if (!workout || !copyWorkoutName.trim()) return
+    
+    setIsCopying(true)
+    
+    try {
+      const response = await fetch('/api/workouts/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workoutId: workout.id,
+          newName: copyWorkoutName.trim()
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to copy workout')
+      }
+      
+      // Navigate to the new workout
+      router.push(`/protected/workouts/${data.workout.id}`)
+      router.refresh()
+    } catch (err) {
+      console.error('Error copying workout:', err)
+      setError(err instanceof Error ? err.message : 'Failed to copy workout')
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setIsCopying(false)
+      setShowCopyModal(false)
+    }
+  }, [workout, copyWorkoutName, router])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+    
+    if (!over || active.id === over.id || !workout) return
+    
+    const oldIndex = workout.workout_data.exercises.findIndex((_, i) => `exercise-${i}` === active.id)
+    const newIndex = workout.workout_data.exercises.findIndex((_, i) => `exercise-${i}` === over.id)
+    
+    if (oldIndex === -1 || newIndex === -1) return
+    
+    // Optimistic update
+    const newExercises = arrayMove(workout.workout_data.exercises, oldIndex, newIndex)
+    const optimisticWorkout = {
+      ...workout,
+      workout_data: {
+        ...workout.workout_data,
+        exercises: newExercises
+      }
+    }
+    setWorkout(optimisticWorkout)
+    setIsReordering(true)
+    
+    try {
+      // Get the reordered exercise IDs
+      const reorderedExerciseIds = newExercises.map((_, index) => {
+        const originalIndex = workout.workout_data.exercises.findIndex(ex => ex.name === newExercises[index].name)
+        return completedExercises[originalIndex]?.id
+      }).filter(Boolean)
+      
+      const response = await fetch('/api/workouts/exercises/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workoutId: workout.id,
+          exerciseIds: reorderedExerciseIds
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reorder exercises')
+      }
+      
+      // Refresh completion state with new order
+      await refreshCompletionState()
+    } catch (err) {
+      console.error('Error reordering exercises:', err)
+      // Rollback on error
+      setWorkout(workout)
+      setError(err instanceof Error ? err.message : 'Failed to reorder exercises')
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setIsReordering(false)
+    }
+  }, [workout, completedExercises, refreshCompletionState])
 
   useEffect(() => {
     async function fetchWorkout() {
@@ -532,6 +889,20 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                   <p className="mt-0.5 text-xs text-white/70">Review your personalized workout</p>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleCopyClick}
+                    className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5"
+                  >
+                    <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    Copy
+                  </button>
+                  <button
+                    onClick={handleRegenerate}
+                    className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    Regenerate
+                  </button>
                   <Link href="/protected/workouts/generate">
                     <button className="rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1.5">
                       <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -680,106 +1051,55 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
               {/* Exercises - more compact */}
               <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 <div className="rounded-lg border border-transparent bg-white/5 backdrop-blur-xl">
-                  <div className="flex items-center justify-between p-2 border-b border-transparent">
-                    <h3 className="text-xs text-white/90 flex items-center">
-                      <Dumbbell className="h-3.5 w-3.5 mr-1" />
-                      Exercises ({workout.workout_data.exercises.length})
-                    </h3>
-                    <button
-                      onClick={() => setShowExercisePicker(true)}
-                      className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1"
+                  <div className="p-2 border-b border-transparent">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs text-white/90 flex items-center">
+                        <Dumbbell className="h-3.5 w-3.5 mr-1" />
+                        Exercises ({workout.workout_data.exercises.length})
+                      </h3>
+                      <button
+                        onClick={() => setShowExercisePicker(true)}
+                        className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" strokeWidth={1.5} />
+                        Add
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-1 font-light">
+                      Drag to reorder • Double-tap to complete • Click once to delete
+                    </p>
+                  </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={workout.workout_data.exercises.map((_, i) => `exercise-${i}`)}
+                      strategy={verticalListSortingStrategy}
                     >
-                      <Plus className="h-3 w-3" strokeWidth={1.5} />
-                      Add
-                    </button>
-                  </div>
-                  <div className="p-2 space-y-2">
-                    {workout.workout_data.exercises.map((exercise, index) => {
-                      const status = completedExercises[index]
-                      const isCompleted = status?.completed ?? false
+                      <div className="p-2 space-y-2">
+                        {workout.workout_data.exercises.map((exercise, index) => {
+                          const status = completedExercises[index]
+                          const isCompleted = status?.completed ?? false
 
-                      return (
-                        <motion.div
-                          key={index}
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={isCompleted}
-                          onClick={() => toggleExerciseCompletion(index)}
-                          onKeyDown={(event) => handleExerciseKeyDown(event, index)}
-                          onTouchStart={() => handleLongPressStart(index)}
-                          onTouchEnd={handleLongPressEnd}
-                          onTouchCancel={handleLongPressEnd}
-                          onMouseDown={() => handleLongPressStart(index)}
-                          onMouseUp={handleLongPressEnd}
-                          onMouseLeave={handleLongPressEnd}
-                          initial={{ opacity: 0, x: -5 }}
-                          animate={{
-                            opacity: 1,
-                            x: 0,
-                            scale: isCompleted ? 1.01 : 1
-                          }}
-                          transition={{ delay: 0.05 + index * 0.03 }}
-                          className={`relative rounded-md border p-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 cursor-pointer ${
-                            isCompleted
-                              ? 'border-emerald-400/40 bg-emerald-400/10'
-                              : 'border-transparent bg-white/5 hover:bg-white/10'
-                          }`}
-                        >
-                          {contextMenuIndex === index && (
-                            <div className="absolute top-0 right-0 mt-1 mr-1">
-                              <ExerciseContextMenu
-                                isOpen={contextMenuIndex === index}
-                                onDelete={() => handleDeleteExerciseClick(index)}
-                                onClose={() => setContextMenuIndex(null)}
-                                exerciseName={exercise.name}
-                              />
-                            </div>
-                          )}
-                          <div className="flex items-center">
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] font-light text-white/70">
-                                {index + 1}
-                              </div>
-                              <h4 className={`text-xs font-light ${isCompleted ? 'text-emerald-100' : 'text-white/90'}`}>
-                                {exercise.name}
-                              </h4>
-                            </div>
-                            <div className={`flex items-center gap-1.5 text-[10px] ml-3 ${isCompleted ? 'text-emerald-100/80' : 'text-white/70'}`}>
-                              <span className="text-white/60">Sets:</span>
-                              <span className="font-medium text-white/90">{exercise.sets}</span>
-                              <span className="ml-1 text-white/60">Reps:</span>
-                              <span className="font-medium text-white/90">{exercise.reps}</span>
-                              <span className="ml-1 text-white/60">Rest:</span>
-                              <span className="font-medium text-white/90">{exercise.rest_time_seconds}s</span>
-                            </div>
-                            <div
-                              className="ml-auto"
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                            >
-                              <ExerciseVideoButton exerciseName={exercise.name} size="small" variant="subtle" />
-                            </div>
-                          </div>
-
-                          {exercise.rationale && (
-                            <div
-                              className={`mt-1 rounded-md border p-1.5 transition-colors ${
-                                isCompleted
-                                  ? 'border-emerald-400/30 bg-emerald-400/5 text-emerald-100'
-                                  : 'border-transparent bg-white/5 text-white/80'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1 text-[9px] mb-0.5 uppercase tracking-wider">
-                                <Info className="h-2.5 w-2.5" />
-                                Tips
-                              </div>
-                              <p className="text-[10px] leading-snug line-clamp-2">{exercise.rationale}</p>
-                            </div>
-                          )}
-                        </motion.div>
-                      )
-                    })}
-                  </div>
+                          return (
+                            <SortableExerciseItem
+                              key={`exercise-${index}`}
+                              exercise={exercise}
+                              index={index}
+                              isCompleted={isCompleted}
+                              selectedExerciseIndex={selectedExerciseIndex}
+                              totalExercises={workout.workout_data.exercises.length}
+                              onExerciseClick={handleExerciseClick}
+                              onExerciseKeyDown={handleExerciseKeyDown}
+                              onDeleteClick={handleDeleteExerciseClick}
+                            />
+                          )
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </motion.div>
             </>
@@ -813,6 +1133,88 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
         onClose={() => setShowExercisePicker(false)}
         onExerciseAdded={handleExerciseAdded}
       />
+      
+      {/* Copy Workout Modal - Black Theme */}
+      {showCopyModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => !isCopying && setShowCopyModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", duration: 0.4 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md mx-4 rounded-lg border border-white/10 bg-black/90 backdrop-blur-xl p-6 shadow-2xl"
+          >
+            {/* Icon */}
+            <div className="mb-4 flex items-center justify-center">
+              <div className="rounded-full bg-white/5 p-3">
+                <Copy className="h-6 w-6 text-white/90" />
+              </div>
+            </div>
+            
+            {/* Title */}
+            <h3 className="text-lg font-semibold text-white text-center mb-2">Copy Workout</h3>
+            <p className="text-sm text-white/60 text-center mb-6">
+              Create a duplicate with a new name
+            </p>
+            
+            {/* Input */}
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-white/70 mb-2">Workout Name</label>
+              <input
+                type="text"
+                value={copyWorkoutName}
+                onChange={(e) => setCopyWorkoutName(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none transition-colors"
+                placeholder="Enter workout name..."
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && copyWorkoutName.trim()) {
+                    handleCopyConfirm()
+                  } else if (e.key === 'Escape') {
+                    setShowCopyModal(false)
+                  }
+                }}
+              />
+            </div>
+            
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCopyModal(false)}
+                disabled={isCopying}
+                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </button>
+              <button
+                onClick={handleCopyConfirm}
+                disabled={isCopying || !copyWorkoutName.trim()}
+                className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCopying ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Copying...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Create Copy
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </>
   )
 }

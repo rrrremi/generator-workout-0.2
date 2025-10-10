@@ -26,7 +26,7 @@ const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     
     // Get current user
     const { data: { user } } = await supabase.auth.getUser();
@@ -70,11 +70,24 @@ export async function POST(request: NextRequest) {
     }
     
     // Parse request body
-    const requestData: WorkoutGenerationRequest = await request.json();
+    const requestData: WorkoutGenerationRequest & { excludeExercises?: string[] } = await request.json();
     
     // Sanitize user input immediately
     if (requestData.specialInstructions) {
       requestData.specialInstructions = sanitizeSpecialInstructions(requestData.specialInstructions);
+    }
+    
+    // Handle regenerate mode: add excluded exercises to special instructions
+    if (requestData.excludeExercises && requestData.excludeExercises.length > 0) {
+      const excludeInstruction = `\n\nIMPORTANT: Generate DIFFERENT exercises. DO NOT use any of these exercises:\n${requestData.excludeExercises.map(ex => `- ${ex}`).join('\n')}\n\nProvide SUBSTITUTE exercises that target the same muscle groups from different angles, grips, or equipment. Maintain similar difficulty and intensity.`;
+      const combined = (requestData.specialInstructions || '') + excludeInstruction;
+      // Truncate to 140 characters (current database constraint)
+      requestData.specialInstructions = combined.length > 140 ? combined.substring(0, 137) + '...' : combined;
+    }
+    
+    // Final safety check: ensure specialInstructions doesn't exceed 140 chars
+    if (requestData.specialInstructions && requestData.specialInstructions.length > 140) {
+      requestData.specialInstructions = requestData.specialInstructions.substring(0, 137) + '...';
     }
     
     // Validate request
@@ -102,9 +115,22 @@ export async function POST(request: NextRequest) {
     
     // Generate workout
     if (process.env.NODE_ENV === 'development') {
-      console.log('Generating workout with parameters:', JSON.stringify(requestData));
+      console.log('Generating workout with parameters:', JSON.stringify({
+        muscleFocus: requestData.muscleFocus,
+        workoutFocus: requestData.workoutFocus,
+        exerciseCount: requestData.exerciseCount,
+        specialInstructions: requestData.specialInstructions,
+        difficulty: requestData.difficulty
+      }));
     }
-    const result = await generateWorkout(requestData);
+    
+    // Remove excludeExercises from the request before passing to generateWorkout
+    // (it's already been added to specialInstructions)
+    const { excludeExercises, ...workoutRequest } = requestData;
+    
+    console.log('Calling generateWorkout with:', workoutRequest);
+    const result = await generateWorkout(workoutRequest);
+    console.log('generateWorkout result:', result.success ? 'SUCCESS' : 'FAILED', result.error || '');
     
     if (!result.success || !result.data) {
       console.error('Failed to generate workout:', result.error);
@@ -123,6 +149,15 @@ export async function POST(request: NextRequest) {
       const workoutName = sanitizeWorkoutName(result.data.name);
 
       // Create workout in database - ONLY include fields that are definitely in the schema
+      // Track regeneration metadata in raw_ai_response
+      const rawResponseWithMetadata = requestData.excludeExercises && requestData.excludeExercises.length > 0
+        ? JSON.stringify({
+            source: 'regenerate',
+            excluded_exercises: requestData.excludeExercises,
+            raw_response: result.rawResponse || ''
+          })
+        : result.rawResponse || '';
+      
       const insertData = {
         user_id: user.id,
         name: workoutName,
@@ -131,7 +166,7 @@ export async function POST(request: NextRequest) {
         joint_groups_affected: result.data.joint_groups_affected || 'Multiple joints',
         equipment_needed: result.data.equipment_needed || 'Bodyweight',
         workout_data: result.data,
-        raw_ai_response: result.rawResponse || '',
+        raw_ai_response: rawResponseWithMetadata,
         ai_model: 'gpt-3.5-turbo',
         prompt_tokens: result.usage?.promptTokens,
         completion_tokens: result.usage?.completionTokens,

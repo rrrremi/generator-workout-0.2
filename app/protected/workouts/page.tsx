@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Dumbbell, Sparkles, Target, Clock, BarChart3, Trash2, AlertCircle, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown } from 'lucide-react'
+import { Dumbbell, Sparkles, Target, Clock, BarChart3, Trash2, AlertCircle, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown, Plus } from 'lucide-react'
 import DeleteWorkoutModal from '@/components/workout/DeleteWorkoutModal'
 import WorkoutRatingDisplay from '@/components/workout/WorkoutRatingDisplay'
 
@@ -392,14 +392,6 @@ export default function WorkoutsPage() {
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-50">
-        <Link href="/protected/workouts/generate">
-          <button className="h-10 px-4 rounded-lg border border-white/20 bg-white/10 backdrop-blur-xl flex items-center justify-center shadow-lg hover:bg-white/20 transition-all group">
-            <Sparkles className="h-4 w-4 text-white/90 mr-1.5" strokeWidth={1.5} />
-            <span className="text-white/90 text-xs font-light hidden sm:inline">Generate</span>
-          </button>
-        </Link>
-      </div>
 
       <section className="mx-auto mt-6 w-full max-w-3xl px-2 sm:px-3 pb-10">
         <motion.div
@@ -423,12 +415,20 @@ export default function WorkoutsPage() {
                   </p>
                 </div>
 
-                <Link href="/protected/workouts/generate">
-                  <button className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
-                    <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    New
-                  </button>
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  <Link href="/protected/workouts/create">
+                    <button className="flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
+                      <Plus className="h-3 w-3" strokeWidth={1.5} />
+                      <span className="hidden sm:inline">Create</span>
+                    </button>
+                  </Link>
+                  <Link href="/protected/workouts/generate">
+                    <button className="flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
+                      <Sparkles className="h-3 w-3" strokeWidth={1.5} />
+                      <span className="hidden sm:inline">Generate</span>
+                    </button>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -690,14 +690,22 @@ export default function WorkoutsPage() {
                   </div>
                   <h3 className="text-base font-light text-white/90 mb-1">No workouts yet</h3>
                   <p className="text-sm text-white/60 max-w-xs mb-4 font-light">
-                    Start your fitness journey by generating your first AI-powered workout
+                    Start your fitness journey by creating or generating your first workout
                   </p>
-                  <Link href="/protected/workouts/generate">
-                    <button className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-light text-white/90 hover:bg-white/20 transition-colors">
-                      <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-                      Generate Workout
-                    </button>
-                  </Link>
+                  <div className="flex gap-2">
+                    <Link href="/protected/workouts/create">
+                      <button className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-light text-white/90 hover:bg-white/20 transition-colors">
+                        <Plus className="h-4 w-4" strokeWidth={1.5} />
+                        Create Workout
+                      </button>
+                    </Link>
+                    <Link href="/protected/workouts/generate">
+                      <button className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-light text-white/90 hover:bg-white/20 transition-colors">
+                        <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+                        Generate Workout
+                      </button>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>

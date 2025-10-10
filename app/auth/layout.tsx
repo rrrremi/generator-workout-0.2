@@ -7,7 +7,7 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Check if user is already authenticated
   const { data: { user } } = await supabase.auth.getUser()

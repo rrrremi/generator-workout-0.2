@@ -27,7 +27,7 @@ export async function findOrCreateExercise(exerciseData: ExerciseData): Promise<
   exercise: ExerciseRecord;
   created: boolean;
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     // Clean up the exercise name
@@ -167,7 +167,7 @@ export async function linkExerciseToWorkout(
     rationale?: string;
   }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     console.log(`Linking exercise ${params.exercise_id} to workout ${params.workout_id}`);
@@ -214,7 +214,7 @@ interface WorkoutExerciseWithDetails {
 }
 
 export async function calculateWorkoutSummary(workoutId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     // Get all exercises for this workout with their details
@@ -306,7 +306,7 @@ export async function calculateWorkoutSummary(workoutId: string) {
  * @returns Array of exercise records
  */
 export async function getAllExercises() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase
     .from('exercises')
@@ -327,7 +327,7 @@ export async function getAllExercises() {
  * @returns Array of matching exercise records
  */
 export async function getExercisesByMuscles(muscles: string[]) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data, error } = await supabase
     .from('exercises')

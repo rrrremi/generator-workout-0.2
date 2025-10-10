@@ -27,7 +27,7 @@ export async function findOrCreateExercise(exerciseData: ExerciseData): Promise<
   exercise: ExerciseRecord;
   created: boolean;
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     // Clean up the exercise name
@@ -133,7 +133,7 @@ export async function linkExerciseToWorkout(
     rationale?: string;
   }
 ) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   try {
     console.log(`Linking exercise ${exerciseId} to workout ${workoutId}`);

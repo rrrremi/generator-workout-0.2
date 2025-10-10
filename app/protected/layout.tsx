@@ -6,7 +6,7 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Check if user is authenticated
   const { data: { user } } = await supabase.auth.getUser()

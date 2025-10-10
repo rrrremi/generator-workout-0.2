@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import SignOutButton from '@/components/auth/SignOutButton';
@@ -81,6 +81,31 @@ export default function GenerateWorkoutPage() {
     'Finalizing your workout'
   ])
   const [showSuggestions, setShowSuggestions] = useState(false)
+
+  // Load URL parameters for regeneration
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const regenerate = searchParams.get('regenerate')
+    
+    if (regenerate === 'true') {
+      try {
+        const muscleFocusParam = searchParams.get('muscleFocus')
+        const workoutFocusParam = searchParams.get('workoutFocus')
+        const exerciseCountParam = searchParams.get('exerciseCount')
+        const excludeExercisesParam = searchParams.get('excludeExercises')
+        
+        if (muscleFocusParam) setMuscleFocus(JSON.parse(muscleFocusParam))
+        if (workoutFocusParam) setWorkoutFocus(JSON.parse(workoutFocusParam))
+        if (exerciseCountParam) setExerciseCount(parseInt(exerciseCountParam))
+        if (excludeExercisesParam) {
+          const excludedExercises = JSON.parse(excludeExercisesParam)
+          setSpecialInstructions(`Generate alternative exercises (not: ${excludedExercises.join(', ')})`)
+        }
+      } catch (err) {
+        console.error('Error parsing regenerate params:', err)
+      }
+    }
+  }, [])
 
   // Check admin status and generation count on load
   useEffect(() => {
@@ -211,12 +236,18 @@ export default function GenerateWorkoutPage() {
       setProgressiveStep(1);
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      const requestBody: WorkoutGenerationRequest = {
+      // Check if this is a regeneration (excludeExercises in URL)
+      const searchParams = new URLSearchParams(window.location.search)
+      const excludeExercisesParam = searchParams.get('excludeExercises')
+      const excludeExercises = excludeExercisesParam ? JSON.parse(excludeExercisesParam) : undefined
+      
+      const requestBody: WorkoutGenerationRequest & { excludeExercises?: string[] } = {
         muscleFocus: muscleFocus,
         workoutFocus: workoutFocus, // Pass the entire array of workout focus types
         exerciseCount: exerciseCount,
         specialInstructions: specialInstructions,
-        difficulty: 'intermediate' // Default difficulty
+        difficulty: 'intermediate', // Default difficulty
+        excludeExercises: excludeExercises
       };
 
       // Step 3: Generating with OpenAI

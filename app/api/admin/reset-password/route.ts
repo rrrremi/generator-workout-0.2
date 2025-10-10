@@ -6,7 +6,7 @@ import { isAdmin } from '@/lib/utils/auth'
 export async function POST(request: NextRequest) {
   try {
     // Check if user is admin
-    const supabase = createClient()
+    const supabase = await createClient()
     const adminStatus = await isAdmin()
 
     if (!adminStatus) {

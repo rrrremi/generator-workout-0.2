@@ -18,6 +18,8 @@ interface ExercisePickerProps {
   workoutId: string
   onClose: () => void
   onExerciseAdded: () => void
+  createMode?: boolean
+  onSelectExercise?: (exerciseName: string) => void
 }
 
 const MUSCLE_GROUPS = [
@@ -52,7 +54,9 @@ export default function ExercisePicker({
   isOpen,
   workoutId,
   onClose,
-  onExerciseAdded
+  onExerciseAdded,
+  createMode = false,
+  onSelectExercise
 }: ExercisePickerProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('all')
@@ -189,6 +193,17 @@ export default function ExercisePicker({
     setAddingExerciseId(exerciseId)
     setError(null)
 
+    // Create mode: just return the exercise name
+    if (createMode && onSelectExercise) {
+      const exercise = exercises.find(ex => ex.id === exerciseId)
+      if (exercise) {
+        onSelectExercise(exercise.name)
+      }
+      setAddingExerciseId(null)
+      return
+    }
+
+    // Normal mode: add to existing workout
     try {
       const response = await fetch('/api/workouts/exercises/add', {
         method: 'POST',
