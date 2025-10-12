@@ -824,7 +824,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
         reps: 10,
         rest_time_seconds: 60,
         set_details: [],
-        rationale: null
+        rationale: ''
       }
       
       setWorkout(prev => ({
