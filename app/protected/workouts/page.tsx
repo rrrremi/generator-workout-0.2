@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -44,6 +44,10 @@ export default function WorkoutsPage() {
   const [sortField, setSortField] = useState<'target_date' | 'created_at' | 'name'>('target_date')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
+  // Performance: Cache workouts
+  const workoutsCacheRef = useRef<{ workouts: Workout[]; timestamp: number } | null>(null)
+  const CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -77,33 +81,39 @@ export default function WorkoutsPage() {
     }
 
     fetchUserData()
-  }, [supabase, router, sortField, sortDirection])
+  }, [supabase, router])
 
-  const fetchWorkouts = async (userId: string) => {
+  const fetchWorkouts = useCallback(async (userId: string, forceRefresh = false) => {
     try {
+      // Check cache first
+      const cached = workoutsCacheRef.current
+      const now = Date.now()
+      
+      if (!forceRefresh && cached && (now - cached.timestamp) < CACHE_DURATION) {
+        // Use cached workouts (instant load)
+        setWorkouts(cached.workouts)
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setError(null)
 
-      let query = supabase
+      const { data, error } = await supabase
         .from('workouts')
         .select('id, name, created_at, total_duration_minutes, muscle_focus, workout_focus, workout_data, target_date, status, rating')
         .eq('user_id', userId)
-
-      if (sortField === 'name') {
-        query = query.order('name', { ascending: sortDirection === 'asc' }).order('created_at', { ascending: false })
-      } else if (sortField === 'target_date') {
-        query = query
-          .order('target_date', { ascending: sortDirection === 'asc', nullsFirst: sortDirection === 'asc' })
-          .order('created_at', { ascending: false })
-      } else {
-        query = query.order('created_at', { ascending: sortDirection === 'asc' })
-      }
-
-      const { data, error } = await query
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       if (data) {
-        setWorkouts(data as Workout[])
+        const workoutsData = data as Workout[]
+        setWorkouts(workoutsData)
+        // Cache the workouts
+        workoutsCacheRef.current = {
+          workouts: workoutsData,
+          timestamp: now
+        }
       }
     } catch (err) {
       console.error('Error fetching workouts:', err)
@@ -111,7 +121,7 @@ export default function WorkoutsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, CACHE_DURATION])
 
   const openDeleteModal = (id: string) => {
     setDeleteTargetId(id)
@@ -123,11 +133,25 @@ export default function WorkoutsPage() {
 
     try {
       setIsDeleting(true)
+      
+      // Optimistic update: Remove from UI immediately
+      const previousWorkouts = workouts
+      setWorkouts(prev => prev.filter(w => w.id !== deleteTargetId))
+      
       const { error } = await supabase.from('workouts').delete().eq('id', deleteTargetId)
-      if (error) throw error
-
-      if (user?.id) {
-        await fetchWorkouts(user.id)
+      
+      if (error) {
+        // Rollback on error
+        setWorkouts(previousWorkouts)
+        throw error
+      }
+      
+      // Update cache
+      if (workoutsCacheRef.current) {
+        workoutsCacheRef.current = {
+          workouts: workouts.filter(w => w.id !== deleteTargetId),
+          timestamp: Date.now()
+        }
       }
     } catch (err) {
       console.error('Error deleting workout:', err)
@@ -246,22 +270,34 @@ export default function WorkoutsPage() {
     { id: 'missed', label: 'Missed' },
     { id: 'completed', label: 'Completed' }
   ]
+  
+  // Performance: Memoize parsed values to avoid repeated parsing
+  const parsedWorkoutData = useMemo(() => {
+    return workouts.map(workout => ({
+      id: workout.id,
+      muscles: parseMuscleValues(workout.muscle_focus).map(m => m.toLowerCase()),
+      focus: parseFocusValues(workout.workout_focus).map(f => f.toLowerCase())
+    }))
+  }, [workouts])
+  
   // Filter workouts based on search term and selected filters
   const filteredWorkouts = useMemo(() => {
-    const filtered = workouts.filter(workout => {
+    const filtered = workouts.filter((workout, index) => {
       // Filter by search term
       const name = workout.name || `Workout ${new Date(workout.created_at).toLocaleDateString()}`
       const matchesSearch = !searchTerm || name.toLowerCase().includes(searchTerm.toLowerCase())
       
+      // Use pre-parsed data for performance
+      const parsed = parsedWorkoutData[index]
+      if (!parsed) return false
+      
       // Filter by selected muscles
-      const workoutMuscles = parseMuscleValues(workout.muscle_focus).map(m => m.toLowerCase())
       const matchesMuscles = selectedMuscles.length === 0 || 
-        selectedMuscles.some(selected => workoutMuscles.includes(selected.toLowerCase()))
+        selectedMuscles.some(selected => parsed.muscles.includes(selected.toLowerCase()))
       
       // Filter by selected focus
-      const workoutFocus = parseFocusValues(workout.workout_focus).map(f => f.toLowerCase())
       const matchesFocus = selectedFocus.length === 0 || 
-        selectedFocus.some(selected => workoutFocus.includes(selected.toLowerCase()))
+        selectedFocus.some(selected => parsed.focus.includes(selected.toLowerCase()))
       
       const matchesStatus = selectedStatuses.length === 0 || (workout.status ? selectedStatuses.includes(workout.status) : selectedStatuses.includes('new'))
       return matchesSearch && matchesMuscles && matchesFocus && matchesStatus
@@ -307,7 +343,7 @@ export default function WorkoutsPage() {
       // sortField === 'created_at'
       return compareCreated()
     })
-  }, [workouts, searchTerm, selectedMuscles, selectedFocus, selectedStatuses, sortField, sortDirection])
+  }, [workouts, parsedWorkoutData, searchTerm, selectedMuscles, selectedFocus, selectedStatuses, sortField, sortDirection])
 
   const handleSortChange = (field: 'target_date' | 'created_at' | 'name') => {
     if (sortField === field) {
@@ -392,8 +428,26 @@ export default function WorkoutsPage() {
 
   return (
     <>
+      <section className="mx-auto w-full max-w-3xl px-2 pb-10">
+        {/* Action Buttons */}
+        <div className="mb-2 flex items-center justify-between relative z-10">
+          <div></div>
+          <div className="flex items-center gap-1.5">
+            <Link href="/protected/workouts/create">
+              <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+                <Plus className="h-3.5 w-3.5" />
+                Create
+              </button>
+            </Link>
+            <Link href="/protected/workouts/generate">
+              <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+                <Sparkles className="h-3.5 w-3.5" />
+                Generate
+              </button>
+            </Link>
+          </div>
+        </div>
 
-      <section className="mx-auto mt-6 w-full max-w-3xl px-2 sm:px-3 pb-10">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -413,21 +467,6 @@ export default function WorkoutsPage() {
                   <p className="mt-0.5 text-xs text-white/70">
                     View and manage your workout history
                   </p>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <Link href="/protected/workouts/create">
-                    <button className="flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
-                      <Plus className="h-3 w-3" strokeWidth={1.5} />
-                      <span className="hidden sm:inline">Create</span>
-                    </button>
-                  </Link>
-                  <Link href="/protected/workouts/generate">
-                    <button className="flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors">
-                      <Sparkles className="h-3 w-3" strokeWidth={1.5} />
-                      <span className="hidden sm:inline">Generate</span>
-                    </button>
-                  </Link>
                 </div>
               </div>
             </div>

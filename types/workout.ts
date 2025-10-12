@@ -1,3 +1,11 @@
+export interface WorkoutSetDetail {
+  set_number: number;
+  reps?: number | null;
+  weight_kg?: number | null;
+  rest_seconds?: number | null;
+  notes?: string | null;
+}
+
 export interface Exercise {
   name: string;
   sets: number;
@@ -14,6 +22,7 @@ export interface Exercise {
   weight?: string;
   duration_seconds?: number;
   notes?: string;
+  set_details?: WorkoutSetDetail[];
 }
 
 export interface WorkoutData {

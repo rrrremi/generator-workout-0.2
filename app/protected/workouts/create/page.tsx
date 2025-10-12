@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -22,30 +22,37 @@ export default function CreateWorkoutPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleAddExercise = (exerciseName: string) => {
-    setExercises([...exercises, {
+  const handleAddExercise = useCallback((exerciseName: string) => {
+    setExercises(prev => [...prev, {
       name: exerciseName,
       sets: 3,
       reps: 10,
       rest_time_seconds: 60
     }])
-    setShowExercisePicker(false)
-  }
+    // Keep picker open to allow adding multiple exercises
+  }, [])
 
-  const handleRemoveExercise = (index: number) => {
+  const handleRemoveExercise = useCallback((index: number) => {
     // Don't allow deleting the last exercise
-    if (exercises.length <= 1) return
-    setExercises(exercises.filter((_, i) => i !== index))
-  }
+    setExercises(prev => {
+      if (prev.length <= 1) return prev
+      return prev.filter((_, i) => i !== index)
+    })
+  }, [])
 
-  const handleUpdateExercise = (index: number, field: keyof Exercise, value: string | number) => {
-    const updated = [...exercises]
-    updated[index] = { ...updated[index], [field]: value }
-    setExercises(updated)
-  }
+  const handleUpdateExercise = useCallback((index: number, field: keyof Exercise, value: string | number) => {
+    setExercises(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
+  }, [])
 
-  const isValid = workoutName.trim().length > 0 && exercises.length > 0 && exercises.every(ex => 
-    ex.sets > 0 && ex.reps > 0 && ex.rest_time_seconds >= 0
+  const isValid = useMemo(() => 
+    workoutName.trim().length > 0 && exercises.length > 0 && exercises.every(ex => 
+      ex.sets > 0 && ex.reps > 0 && ex.rest_time_seconds >= 0
+    ),
+    [workoutName, exercises]
   )
 
   const handleCreate = async () => {
@@ -268,7 +275,7 @@ export default function CreateWorkoutPage() {
         workoutId="temp-create-mode"
         onClose={() => setShowExercisePicker(false)}
         onExerciseAdded={() => {
-          setShowExercisePicker(false)
+          // Keep picker open to allow adding multiple exercises
         }}
         createMode={true}
         onSelectExercise={handleAddExercise}

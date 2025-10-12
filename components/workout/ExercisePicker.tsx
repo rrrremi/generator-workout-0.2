@@ -17,7 +17,7 @@ interface ExercisePickerProps {
   isOpen: boolean
   workoutId: string
   onClose: () => void
-  onExerciseAdded: () => void
+  onExerciseAdded: (exercise?: Exercise) => void
   createMode?: boolean
   onSelectExercise?: (exerciseName: string) => void
 }
@@ -70,6 +70,10 @@ export default function ExercisePicker({
   const [error, setError] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  
+  // Performance: Cache exercise lists to avoid refetching
+  const exerciseCacheRef = useRef<Map<string, { exercises: Exercise[]; timestamp: number }>>(new Map())
+  const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
   // Auto-focus search input when panel opens
   useEffect(() => {
@@ -80,6 +84,8 @@ export default function ExercisePicker({
 
   // Search exercises with debounce (reset on filter change)
   useEffect(() => {
+    if (!isOpen) return // Don't search if picker is closed
+    
     const timer = setTimeout(() => {
       setOffset(0)
       setHasMore(true)
@@ -87,14 +93,28 @@ export default function ExercisePicker({
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedMuscle, selectedMovement])
+  }, [searchQuery, selectedMuscle, selectedMovement, isOpen])
 
-  // Load exercises on mount
+  // Load exercises on mount (with caching)
   useEffect(() => {
     if (isOpen) {
       setOffset(0)
       setHasMore(true)
-      searchExercises(true)
+      
+      // Check cache first
+      const cacheKey = `${searchQuery}-${selectedMuscle}-${selectedMovement}`
+      const cached = exerciseCacheRef.current.get(cacheKey)
+      const now = Date.now()
+      
+      if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        // Use cached data immediately (0ms load time)
+        setExercises(cached.exercises)
+        setIsSearching(false)
+        setHasMore(cached.exercises.length === 20)
+      } else {
+        // Fetch fresh data
+        searchExercises(true)
+      }
     }
   }, [isOpen])
 
@@ -140,6 +160,13 @@ export default function ExercisePicker({
       if (reset) {
         setExercises(newExercises)
         setOffset(20)
+        
+        // Cache the results
+        const cacheKey = `${searchQuery}-${selectedMuscle}-${selectedMovement}`
+        exerciseCacheRef.current.set(cacheKey, {
+          exercises: newExercises,
+          timestamp: Date.now()
+        })
       } else {
         setExercises(prev => [...prev, ...newExercises])
         setOffset(prev => prev + 20)
@@ -190,6 +217,8 @@ export default function ExercisePicker({
   }
 
   const handleAddExercise = async (exerciseId: string) => {
+    if (addingExerciseId !== null) return // Prevent duplicate adds
+    
     setAddingExerciseId(exerciseId)
     setError(null)
 
@@ -203,7 +232,19 @@ export default function ExercisePicker({
       return
     }
 
-    // Normal mode: add to existing workout
+    const exercise = exercises.find(ex => ex.id === exerciseId)
+    if (!exercise) {
+      setAddingExerciseId(null)
+      return
+    }
+
+    // Optimistic update: Remove from list immediately
+    setExercises(prev => prev.filter(ex => ex.id !== exerciseId))
+    
+    // Notify parent with exercise data for optimistic update
+    onExerciseAdded(exercise)
+
+    // Save in background
     try {
       const response = await fetch('/api/workouts/exercises/add', {
         method: 'POST',
@@ -220,14 +261,13 @@ export default function ExercisePicker({
         throw new Error(data.error || 'Failed to add exercise')
       }
 
-      // Success - notify parent to refresh
-      onExerciseAdded()
-      
-      // Remove added exercise from list
-      setExercises(prev => prev.filter(ex => ex.id !== exerciseId))
+      // Success - already updated UI optimistically
     } catch (err: any) {
       console.error('Error adding exercise:', err)
       setError(err.message)
+      
+      // Rollback: Add exercise back to list
+      setExercises(prev => [...prev, exercise].sort((a, b) => a.name.localeCompare(b.name)))
     } finally {
       setAddingExerciseId(null)
     }

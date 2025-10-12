@@ -102,19 +102,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Update workout_data JSONB to add the exercise
-    const currentExercises = workout.workout_data?.exercises || [];
+    const currentExercises = Array.isArray(workout.workout_data?.exercises)
+      ? workout.workout_data.exercises
+      : [];
+
     const newExercise = {
       id: exercise.id,
       name: exercise.name,
       sets: exercise.sets || 3,
       reps: exercise.reps || '10-12',
       rest_time_seconds: exercise.rest_seconds || 60,
-      primary_muscle: exercise.primary_muscles || exercise.primary_muscle,
+      primary_muscles: exercise.primary_muscles || exercise.primary_muscle || [],
       secondary_muscles: exercise.secondary_muscles || [],
       equipment: exercise.equipment || 'None',
       difficulty: exercise.difficulty || 'intermediate',
       instructions: exercise.instructions || '',
-      rationale: exercise.rationale || exercise.instructions || ''
+      rationale: exercise.rationale || exercise.instructions || '',
+      set_details: Array.from({ length: exercise.sets || 3 }, (_, index) => ({
+        set_number: index + 1,
+        reps: typeof exercise.reps === 'number' ? exercise.reps : null,
+        weight_kg: null,
+        rest_seconds: exercise.rest_seconds || 60,
+        notes: null
+      }))
     };
 
     const updatedExercises = [...currentExercises, newExercise];

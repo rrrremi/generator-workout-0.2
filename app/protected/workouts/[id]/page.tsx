@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { Dumbbell, Sparkles, Play, Target, BarChart3, Clock, Calendar, Trash2, ArrowLeft, RefreshCw, Info, Zap, Activity, Pencil, Plus, Copy, Check, X, GripVertical } from 'lucide-react'
+import FocusTrap from 'focus-trap-react'
 import InlineEdit from '@/components/ui/InlineEdit'
 import ExerciseVideoButton from '@/components/workout/ExerciseVideoButton'
 import { SkeletonWorkoutDetail } from '@/components/ui/Skeleton'
@@ -84,6 +85,14 @@ const normalizeWorkoutFocus = (value: unknown): string[] => {
   return Array.from(normalized)
 }
 
+type EditingSetState = {
+  set_number: number
+  reps: number | null
+  weight_kg: number | null
+  rest_seconds: number | null
+  notes: string | null
+}
+
 // Sortable Exercise Item Component
 function SortableExerciseItem({
   exercise,
@@ -94,6 +103,9 @@ function SortableExerciseItem({
   onExerciseClick,
   onExerciseKeyDown,
   onDeleteClick,
+  onEditSets,
+  onPrefetchSets,
+  isEditing,
 }: {
   exercise: any
   index: number
@@ -103,6 +115,9 @@ function SortableExerciseItem({
   onExerciseClick: (index: number, e: React.MouseEvent) => void
   onExerciseKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, index: number) => void
   onDeleteClick: (index: number) => void
+  onEditSets: (index: number) => void
+  onPrefetchSets?: (index: number) => void
+  isEditing: boolean
 }) {
   const {
     attributes,
@@ -139,7 +154,7 @@ function SortableExerciseItem({
         isCompleted
           ? 'border-emerald-400/40 bg-emerald-400/10'
           : 'border-transparent bg-white/5 hover:bg-white/10'
-      } ${selectedExerciseIndex === index ? 'ring-2 ring-white/20' : ''} ${isDragging ? 'z-50 shadow-2xl' : ''}`}
+      } ${selectedExerciseIndex === index ? 'ring-2 ring-white/20' : ''} ${isEditing ? 'border-cyan-400/60 bg-cyan-500/10 shadow-lg' : ''} ${isDragging ? 'z-50 shadow-2xl' : ''}`}
     >
       <div className="flex items-center">
         {/* Drag Handle */}
@@ -169,6 +184,18 @@ function SortableExerciseItem({
           <span className="font-medium text-white/90">{exercise.rest_time_seconds}s</span>
         </div>
         <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={(event) => {
+              event.stopPropagation()
+              onEditSets(index)
+            }}
+            onMouseEnter={() => onPrefetchSets?.(index)}
+            onTouchStart={() => onPrefetchSets?.(index)}
+            className="p-1 rounded-md hover:bg-white/10 text-white hover:text-white transition-colors"
+            title="Edit sets"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
           <div
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
@@ -242,11 +269,24 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   const [showDeleteExerciseModal, setShowDeleteExerciseModal] = useState(false)
   const [isDeletingExercise, setIsDeletingExercise] = useState(false)
   const [showExercisePicker, setShowExercisePicker] = useState(false)
+  const exercisePrefetchRef = useRef<boolean>(false)
   const [showCopyModal, setShowCopyModal] = useState(false)
   const [copyWorkoutName, setCopyWorkoutName] = useState('')
   const [isCopying, setIsCopying] = useState(false)
   const [clickTimestamps, setClickTimestamps] = useState<Record<number, number>>({})
   const [isReordering, setIsReordering] = useState(false)
+  const [editingSetIndex, setEditingSetIndex] = useState<number | null>(null)
+  const [editingWorkoutExerciseId, setEditingWorkoutExerciseId] = useState<string | null>(null)
+  const [editingSetDetails, setEditingSetDetails] = useState<EditingSetState[]>([])
+  const [isLoadingSetDetails, setIsLoadingSetDetails] = useState(false)
+  const [isSavingSetDetails, setIsSavingSetDetails] = useState(false)
+  const [setDetailsError, setSetDetailsError] = useState<string | null>(null)
+  const [pendingSetCount, setPendingSetCount] = useState<number>(0)
+  const [previousWorkoutData, setPreviousWorkoutData] = useState<any>(null)
+  const prefetchCacheRef = useRef<Map<number, any>>(new Map())
+  const saveAbortControllerRef = useRef<AbortController | null>(null)
+  const workoutCacheRef = useRef<Map<string, { workout: Workout; timestamp: number }>>(new Map())
+  const WORKOUT_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
   const supabase = createClient()
 
   const sensors = useSensors(
@@ -263,6 +303,16 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   const goBack = () => {
     router.push('/protected/workouts')
   }
+
+  // Memoize expensive computations
+  const exerciseItems = useMemo(() => {
+    if (!workout) return []
+    return workout.workout_data.exercises.map((_, i) => `exercise-${i}`)
+  }, [workout?.workout_data.exercises.length])
+
+  const exerciseCount = useMemo(() => {
+    return workout?.workout_data.exercises.length ?? 0
+  }, [workout?.workout_data.exercises.length])
 
   const refreshCompletionState = useCallback(async () => {
     try {
@@ -754,26 +804,286 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     }
   }, [deleteExerciseTarget, workout, refreshCompletionState, recomputeWorkoutStatus])
 
-  const handleExerciseAdded = useCallback(async () => {
-    // Refresh workout data after adding exercise
+  // Prefetch exercises on hover
+  const prefetchExercises = useCallback(() => {
+    if (exercisePrefetchRef.current) return
+    exercisePrefetchRef.current = true
+    
+    fetch('/api/exercises/search?muscle=all&movement=all&limit=20')
+      .catch(() => {}) // Silently fail
+  }, [])
+
+  const handleExerciseAdded = useCallback(async (exercise?: any) => {
+    if (!workout) return
+    
+    // Optimistic update with incremental data
+    if (exercise) {
+      const newExercise = {
+        name: exercise.name,
+        sets: 3,
+        reps: 10,
+        rest_time_seconds: 60,
+        set_details: [],
+        rationale: null
+      }
+      
+      setWorkout(prev => ({
+        ...prev!,
+        workout_data: {
+          ...prev!.workout_data,
+          exercises: [...prev!.workout_data.exercises, newExercise]
+        }
+      }))
+      
+      refreshCompletionState().catch(console.error)
+      recomputeWorkoutStatus().catch(console.error)
+    } else {
+      // Fallback: Full refresh
+      try {
+        const { data, error } = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('id', params.id)
+          .single()
+
+        if (error) throw error
+
+        setWorkout(data)
+        refreshCompletionState().catch(console.error)
+        recomputeWorkoutStatus().catch(console.error)
+      } catch (error) {
+        console.error('Error refreshing workout:', error)
+        setError('Failed to refresh workout')
+        setTimeout(() => setError(null), 3000)
+      }
+    }
+  }, [params.id, workout, supabase])
+
+  // Edit Sets functions
+  const resolveWorkoutExerciseId = useCallback(async (index: number) => {
+    const existingId = completedExercises[index]?.id
+    if (existingId) return existingId
+
     try {
       const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('id', params.id)
-        .single()
+        .from('workout_exercises')
+        .select('id, order_index')
+        .eq('workout_id', params.id)
+        .order('order_index')
 
-      if (error) throw error
-
-      setWorkout(data)
-      await refreshCompletionState()
-      await recomputeWorkoutStatus()
-    } catch (error) {
-      console.error('Error refreshing workout:', error)
-      setError('Failed to refresh workout')
-      setTimeout(() => setError(null), 3000)
+      if (error || !data) return null
+      const target = data.find((row) => row.order_index === index)
+      return target?.id ?? null
+    } catch {
+      return null
     }
-  }, [params.id, refreshCompletionState, recomputeWorkoutStatus, supabase])
+  }, [completedExercises, params.id, supabase])
+
+  const prefetchSetDetails = useCallback(async (index: number) => {
+    if (!workout || prefetchCacheRef.current.has(index)) return
+
+    const workoutExerciseId = await resolveWorkoutExerciseId(index)
+    if (!workoutExerciseId) return
+
+    try {
+      const response = await fetch(`/api/workouts/exercises/${workoutExerciseId}/sets?workoutId=${workout.id}`)
+      const data = await response.json()
+      if (response.ok) {
+        prefetchCacheRef.current.set(index, { workoutExerciseId, data })
+      }
+    } catch {
+      // Silently fail prefetch
+    }
+  }, [resolveWorkoutExerciseId, workout])
+
+  const openSetEditor = useCallback(async (index: number) => {
+    if (!workout) return
+    if (editingSetIndex !== null) return
+
+    const workoutExerciseId = await resolveWorkoutExerciseId(index)
+    if (!workoutExerciseId) {
+      setSetDetailsError('Unable to load set information.')
+      setTimeout(() => setSetDetailsError(null), 3000)
+      return
+    }
+
+    setEditingSetIndex(index)
+    setEditingWorkoutExerciseId(workoutExerciseId)
+    setSetDetailsError(null)
+
+    const cachedSetDetails = workout.workout_data.exercises[index]?.set_details
+    if (cachedSetDetails && Array.isArray(cachedSetDetails) && cachedSetDetails.length > 0) {
+      const normalized = cachedSetDetails.map((entry: any) => ({
+        set_number: entry.set_number,
+        reps: entry.reps ?? null,
+        weight_kg: entry.weight_kg ?? null,
+        rest_seconds: entry.rest_seconds ?? null,
+        notes: entry.notes ?? null,
+      }))
+      setEditingSetDetails(normalized)
+      setPendingSetCount(normalized.length)
+      setIsLoadingSetDetails(false)
+    } else {
+      setIsLoadingSetDetails(true)
+      const defaultSetCount = workout.workout_data.exercises[index]?.sets ?? 1
+      const defaultReps = typeof workout.workout_data.exercises[index]?.reps === 'number'
+        ? Number(workout.workout_data.exercises[index]?.reps)
+        : null
+      const defaultRest = workout.workout_data.exercises[index]?.rest_time_seconds ?? null
+
+      setEditingSetDetails(Array.from({ length: defaultSetCount }, (_, idx) => ({
+        set_number: idx + 1,
+        reps: defaultReps,
+        weight_kg: null,
+        rest_seconds: defaultRest,
+        notes: null,
+      })))
+      setPendingSetCount(defaultSetCount)
+    }
+
+    try {
+      const prefetched = prefetchCacheRef.current.get(index)
+      let data
+
+      if (prefetched && prefetched.workoutExerciseId === workoutExerciseId) {
+        data = prefetched.data
+        prefetchCacheRef.current.delete(index)
+      } else {
+        const response = await fetch(`/api/workouts/exercises/${workoutExerciseId}/sets?workoutId=${workout.id}`)
+        data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to load')
+      }
+
+      const entries = Array.isArray(data.entries) ? data.entries : []
+
+      if (entries.length > 0) {
+        const normalized = entries.map((entry: any) => ({
+          set_number: entry.set_number,
+          reps: entry.reps ?? null,
+          weight_kg: entry.weight_kg ?? null,
+          rest_seconds: entry.rest_seconds ?? null,
+          notes: entry.notes ?? null,
+        }))
+        setEditingSetDetails(prev => {
+          if (JSON.stringify(prev) !== JSON.stringify(normalized)) {
+            return normalized
+          }
+          return prev
+        })
+        setPendingSetCount(normalized.length)
+      }
+    } catch (error: any) {
+      if (!cachedSetDetails || cachedSetDetails.length === 0) {
+        setSetDetailsError(error?.message || 'Failed to load')
+        setTimeout(() => setSetDetailsError(null), 3000)
+        setEditingSetIndex(null)
+        setEditingWorkoutExerciseId(null)
+        setEditingSetDetails([])
+      }
+    } finally {
+      setIsLoadingSetDetails(false)
+    }
+  }, [resolveWorkoutExerciseId, workout, editingSetIndex])
+
+  const closeSetEditor = useCallback(() => {
+    setEditingWorkoutExerciseId(null)
+    setEditingSetIndex(null)
+    setEditingSetDetails([])
+    setPendingSetCount(0)
+    setIsSavingSetDetails(false)
+    setIsLoadingSetDetails(false)
+    setSetDetailsError(null)
+  }, [])
+
+  const updateSetDetailField = useCallback((index: number, field: keyof EditingSetState, value: string) => {
+    setEditingSetDetails(prev => {
+      const next = [...prev]
+      const existing = next[index]
+      if (!existing) return prev
+
+      if (field === 'reps' || field === 'rest_seconds') {
+        const numValue = value.trim().length > 0 ? Number(value) : null
+        next[index] = { ...existing, [field]: numValue }
+      } else if (field === 'weight_kg') {
+        const numValue = value.trim().length > 0 ? parseFloat(value) : null
+        next[index] = { ...existing, weight_kg: numValue }
+      } else if (field === 'notes') {
+        const stringValue = typeof value === 'string' ? value : ''
+        next[index] = { ...existing, notes: stringValue.trim().length > 0 ? stringValue.trim() : null }
+      }
+      return next
+    })
+  }, [])
+
+  const persistSetDetails = useCallback(async () => {
+    if (!workout || editingWorkoutExerciseId === null || editingSetIndex === null) return
+    
+    if (editingSetDetails.length === 0) {
+      setSetDetailsError('Add at least one set to track your workout.')
+      setTimeout(() => setSetDetailsError(null), 3000)
+      return
+    }
+
+    if (saveAbortControllerRef.current) {
+      saveAbortControllerRef.current.abort()
+    }
+
+    saveAbortControllerRef.current = new AbortController()
+    setPreviousWorkoutData(workout)
+
+    const optimisticWorkout = {
+      ...workout,
+      workout_data: {
+        ...workout.workout_data,
+        exercises: workout.workout_data.exercises.map((ex: any, idx: number) => {
+          if (idx === editingSetIndex) {
+            return {
+              ...ex,
+              set_details: editingSetDetails,
+              sets: editingSetDetails.length
+            }
+          }
+          return ex
+        })
+      }
+    }
+    setWorkout(optimisticWorkout)
+    closeSetEditor()
+
+    try {
+      const response = await fetch(`/api/workouts/exercises/${editingWorkoutExerciseId}/sets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workoutId: workout.id, setDetails: editingSetDetails }),
+        signal: saveAbortControllerRef.current.signal,
+      })
+
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to save')
+
+      setWorkout(data.workout)
+      // Update cache
+      workoutCacheRef.current.set(params.id, {
+        workout: data.workout,
+        timestamp: Date.now()
+      })
+      setPreviousWorkoutData(null)
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        return
+      }
+      
+      if (previousWorkoutData) {
+        setWorkout(previousWorkoutData)
+        setPreviousWorkoutData(null)
+      }
+      
+      setSetDetailsError(error?.message || 'Failed to save. Changes reverted.')
+      setTimeout(() => setSetDetailsError(null), 5000)
+    } finally {
+      saveAbortControllerRef.current = null
+    }
+  }, [closeSetEditor, editingSetDetails, editingSetIndex, editingWorkoutExerciseId, workout, previousWorkoutData])
 
   const handleRegenerate = useCallback(() => {
     if (!workout) return
@@ -849,6 +1159,11 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     
     if (oldIndex === -1 || newIndex === -1) return
     
+    // Close set editor if open (prevents stale data)
+    if (editingSetIndex !== null) {
+      closeSetEditor()
+    }
+    
     // Optimistic update
     const newExercises = arrayMove(workout.workout_data.exercises, oldIndex, newIndex)
     const optimisticWorkout = {
@@ -899,6 +1214,23 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     async function fetchWorkout() {
       try {
+        // Prevent fetching if ID is a route keyword (create, generate, etc.)
+        if (params.id === 'create' || params.id === 'generate') {
+          setLoading(false)
+          return
+        }
+
+        // Check cache first
+        const cached = workoutCacheRef.current.get(params.id)
+        const now = Date.now()
+        
+        if (cached && (now - cached.timestamp) < WORKOUT_CACHE_DURATION) {
+          // Use cached workout (instant load)
+          setWorkout(cached.workout)
+          setLoading(false)
+          return
+        }
+
         const { data, error } = await supabase
           .from('workouts')
           .select('*')
@@ -910,7 +1242,13 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
         }
 
         if (data) {
-          setWorkout(data as unknown as Workout)
+          const workoutData = data as unknown as Workout
+          setWorkout(workoutData)
+          // Cache the workout
+          workoutCacheRef.current.set(params.id, {
+            workout: workoutData,
+            timestamp: now
+          })
         } else {
           setError('Workout not found')
         }
@@ -922,7 +1260,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
     }
 
     fetchWorkout()
-  }, [params.id, supabase])
+  }, [params.id, supabase, WORKOUT_CACHE_DURATION])
 
   if (loading) {
     return (
@@ -1227,6 +1565,8 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                       </h3>
                       <button
                         onClick={() => setShowExercisePicker(true)}
+                        onMouseEnter={prefetchExercises}
+                        onTouchStart={prefetchExercises}
                         className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/90 hover:bg-white/20 transition-colors flex items-center gap-1"
                       >
                         <Plus className="h-3 w-3" strokeWidth={1.5} />
@@ -1243,7 +1583,7 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                     onDragEnd={handleDragEnd}
                   >
                     <SortableContext
-                      items={workout.workout_data.exercises.map((_, i) => `exercise-${i}`)}
+                      items={exerciseItems}
                       strategy={verticalListSortingStrategy}
                     >
                       <div className="p-2 space-y-2">
@@ -1262,6 +1602,9 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
                               onExerciseClick={handleExerciseClick}
                               onExerciseKeyDown={handleExerciseKeyDown}
                               onDeleteClick={handleDeleteExerciseClick}
+                              onEditSets={openSetEditor}
+                              onPrefetchSets={prefetchSetDetails}
+                              isEditing={editingSetIndex === index}
                             />
                           )
                         })}
@@ -1302,14 +1645,251 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
         onExerciseAdded={handleExerciseAdded}
       />
       
-      {/* Copy Workout Modal - Black Theme */}
+      {/* Edit Sets Modal */}
+      {editingSetIndex !== null && workout && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+          onClick={() => !isSavingSetDetails && closeSetEditor()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="set-editor-title"
+          aria-describedby="set-editor-description"
+        >
+          <FocusTrap>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-2xl rounded-2xl bg-white/5 backdrop-blur-2xl shadow-2xl max-h-[90vh] overflow-hidden"
+            >
+            <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-3xl opacity-40" />
+            <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-emerald-500/20 blur-3xl opacity-30" />
+            
+            <div className="relative">
+              <div className="flex items-center justify-between p-5 pb-4">
+                <div>
+                  <h3 id="set-editor-title" className="text-lg font-semibold text-white">Edit Sets</h3>
+                  <p id="set-editor-description" className="text-sm text-white/60 mt-0.5">{workout.workout_data.exercises[editingSetIndex]?.name}</p>
+                </div>
+                <button
+                  onClick={closeSetEditor}
+                  disabled={isSavingSetDetails}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white/90 transition-colors disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {isLoadingSetDetails ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-white/60" />
+                </div>
+              ) : (
+              <>
+                {/* Header Row */}
+                <div className="px-4 pt-3 pb-2">
+                  <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-center px-2.5">
+                    <div className="w-6"></div>
+                    <div className="text-[9px] font-medium text-white/50 text-center uppercase tracking-wider">Reps</div>
+                    <div className="text-[9px] font-medium text-white/50 text-center uppercase tracking-wider">Weight</div>
+                    <div className="text-[9px] font-medium text-white/50 text-center uppercase tracking-wider">Rest</div>
+                    <div className="text-[9px] font-medium text-white/50 text-center uppercase tracking-wider">Notes</div>
+                    <div className="w-6"></div>
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5 mb-4 px-4 pb-3">
+                  {editingSetDetails.map((detail, idx) => (
+                    <div key={idx} data-set-index={idx} className="rounded-lg bg-white/5 backdrop-blur-xl p-2.5">
+                      <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto] gap-2 items-center">
+                        {/* Set Number */}
+                        <div className="flex items-center justify-center w-6 h-6 rounded bg-white/10 text-[10px] font-medium text-white/90">
+                          {detail.set_number}
+                        </div>
+                        
+                        {/* Reps */}
+                        <div>
+                          <input
+                            type="number"
+                            min="0"
+                            value={detail.reps ?? ''}
+                            onChange={(e) => updateSetDetailField(idx, 'reps', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const nextInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input')
+                                nextInput?.focus()
+                              }
+                            }}
+                            placeholder="Reps"
+                            className="w-full rounded bg-white/10 backdrop-blur-xl px-2 py-1 text-xs text-center text-white placeholder-white/30 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition-colors"
+                          />
+                        </div>
+                        
+                        {/* Weight */}
+                        <div>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={detail.weight_kg ?? ''}
+                            onChange={(e) => updateSetDetailField(idx, 'weight_kg', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const nextInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input')
+                                nextInput?.focus()
+                              }
+                            }}
+                            placeholder="kg"
+                            className="w-full rounded bg-white/10 backdrop-blur-xl px-2 py-1 text-xs text-center text-white placeholder-white/30 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition-colors"
+                          />
+                        </div>
+                        
+                        {/* Rest */}
+                        <div>
+                          <input
+                            type="number"
+                            min="0"
+                            value={detail.rest_seconds ?? ''}
+                            onChange={(e) => updateSetDetailField(idx, 'rest_seconds', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                const nextInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input')
+                                nextInput?.focus()
+                              }
+                            }}
+                            placeholder="Rest"
+                            className="w-full rounded bg-white/10 backdrop-blur-xl px-2 py-1 text-xs text-center text-white placeholder-white/30 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition-colors"
+                          />
+                        </div>
+                        
+                        {/* Notes */}
+                        <div>
+                          <input
+                            type="text"
+                            value={detail.notes ?? ''}
+                            onChange={(e) => updateSetDetailField(idx, 'notes', e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                // Move to next set's first input
+                                const nextSet = e.currentTarget.closest('[key]')?.nextElementSibling
+                                const nextInput = nextSet?.querySelector('input')
+                                if (nextInput) {
+                                  nextInput.focus()
+                                } else {
+                                  // Last set, focus Done button
+                                  document.querySelector<HTMLButtonElement>('[data-action="save-sets"]')?.focus()
+                                }
+                              }
+                            }}
+                            placeholder="Notes"
+                            className="w-full rounded bg-white/10 backdrop-blur-xl px-2 py-1 text-xs text-white placeholder-white/30 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition-colors"
+                          />
+                        </div>
+                        
+                        {/* Remove Button */}
+                        {editingSetDetails.length > 1 && (
+                          <button
+                            onClick={() => {
+                              setEditingSetDetails(prev => prev.filter((_, i) => i !== idx).map((s, i) => ({ ...s, set_number: i + 1 })))
+                              setPendingSetCount(prev => prev - 1)
+                            }}
+                            className="p-1 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-300 transition-colors"
+                            title="Remove set"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button
+                    onClick={() => {
+                      const newSet = {
+                        set_number: editingSetDetails.length + 1,
+                        reps: null,
+                        weight_kg: null,
+                        rest_seconds: null,
+                        notes: null
+                      }
+                      setEditingSetDetails(prev => [...prev, newSet])
+                      setPendingSetCount(prev => prev + 1)
+                      // Focus first input of new set
+                      setTimeout(() => {
+                        const lastSet = document.querySelector('[data-set-index="' + editingSetDetails.length + '"]')
+                        lastSet?.querySelector<HTMLInputElement>('input')?.focus()
+                      }, 50)
+                    }}
+                    disabled={editingSetDetails.length >= 12}
+                    className="w-full rounded-lg bg-white/5 backdrop-blur-xl px-3 py-2 text-[11px] font-light text-white/70 hover:bg-white/10 hover:text-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {editingSetDetails.length < 12 ? `Add Set (${editingSetDetails.length}/12)` : 'Max reached'}
+                  </button>
+                </div>
+
+                {setDetailsError && (
+                  <div role="alert" aria-live="assertive" className="mx-5 mb-4 rounded-xl bg-red-500/10 backdrop-blur-xl p-3 text-xs text-red-300">
+                    {setDetailsError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 px-4 pb-4 pt-3 border-t border-white/5">
+                  <button
+                    onClick={closeSetEditor}
+                    disabled={isSavingSetDetails}
+                    className="rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-[11px] font-light text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  >
+                    <X className="h-3 w-3" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={persistSetDetails}
+                    disabled={isSavingSetDetails}
+                    data-action="save-sets"
+                    className="flex-1 rounded-lg bg-emerald-500/20 backdrop-blur-xl px-3 py-2 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  >
+                    {isSavingSetDetails ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3" />
+                        Done
+                      </>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+            </div>
+            </motion.div>
+          </FocusTrap>
+        </motion.div>
+      )}
+      
+      {/* Copy Workout Modal - Glassmorphism */}
       {showCopyModal && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
           onClick={() => !isCopying && setShowCopyModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="copy-modal-title"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1317,68 +1897,79 @@ export default function WorkoutDetailPage({ params }: { params: { id: string } }
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.4 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md mx-4 rounded-lg border border-white/10 bg-black/90 backdrop-blur-xl p-6 shadow-2xl"
+            className="relative w-full max-w-md rounded-2xl bg-white/5 backdrop-blur-2xl shadow-2xl overflow-hidden"
           >
-            {/* Icon */}
-            <div className="mb-4 flex items-center justify-center">
-              <div className="rounded-full bg-white/5 p-3">
-                <Copy className="h-6 w-6 text-white/90" />
+            <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-3xl opacity-40" />
+            <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-emerald-500/20 blur-3xl opacity-30" />
+            
+            <div className="relative p-5">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Copy className="h-5 w-5 text-white/90" />
+                  <h3 id="copy-modal-title" className="text-lg font-semibold text-white">Copy Workout</h3>
+                </div>
+                <button
+                  onClick={() => setShowCopyModal(false)}
+                  disabled={isCopying}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white/90 transition-colors disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-            </div>
-            
-            {/* Title */}
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Copy Workout</h3>
-            <p className="text-sm text-white/60 text-center mb-6">
-              Create a duplicate with a new name
-            </p>
-            
-            {/* Input */}
-            <div className="mb-6">
-              <label className="block text-xs font-medium text-white/70 mb-2">Workout Name</label>
-              <input
-                type="text"
-                value={copyWorkoutName}
-                onChange={(e) => setCopyWorkoutName(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/30 focus:outline-none transition-colors"
-                placeholder="Enter workout name..."
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && copyWorkoutName.trim()) {
-                    handleCopyConfirm()
-                  } else if (e.key === 'Escape') {
-                    setShowCopyModal(false)
-                  }
-                }}
-              />
-            </div>
-            
-            {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCopyModal(false)}
-                disabled={isCopying}
-                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </button>
-              <button
-                onClick={handleCopyConfirm}
-                disabled={isCopying || !copyWorkoutName.trim()}
-                className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isCopying ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Copying...
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Create Copy
-                  </>
-                )}
-              </button>
+              
+              <p className="text-sm text-white/60 mb-5">
+                Create a duplicate with a new name
+              </p>
+              
+              {/* Input */}
+              <div className="mb-5">
+                <label className="block text-xs font-light text-white/70 mb-2">Workout Name</label>
+                <input
+                  type="text"
+                  value={copyWorkoutName}
+                  onChange={(e) => setCopyWorkoutName(e.target.value)}
+                  className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2.5 text-sm text-white placeholder-white/40 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 transition-colors"
+                  placeholder="Enter workout name..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && copyWorkoutName.trim()) {
+                      handleCopyConfirm()
+                    } else if (e.key === 'Escape') {
+                      setShowCopyModal(false)
+                    }
+                  }}
+                />
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-2 border-t border-white/5 pt-4">
+                <button
+                  onClick={() => setShowCopyModal(false)}
+                  disabled={isCopying}
+                  className="rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-[11px] font-light text-white/80 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCopyConfirm}
+                  disabled={isCopying || !copyWorkoutName.trim()}
+                  className="flex-1 rounded-lg bg-emerald-500/20 backdrop-blur-xl px-3 py-2 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                >
+                  {isCopying ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Copying...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3 w-3" />
+                      Create Copy
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>

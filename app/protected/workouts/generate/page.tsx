@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -65,6 +65,8 @@ export default function GenerateWorkoutPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [generationsToday, setGenerationsToday] = useState<number | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const generationCountCacheRef = useRef<{ count: number; timestamp: number } | null>(null)
+  const CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
   const [muscleFocus, setMuscleFocus] = useState<string[]>([]);
   const [workoutFocus, setWorkoutFocus] = useState<string[]>(['hypertrophy']);
   const [exerciseCount, setExerciseCount] = useState<number>(4);
@@ -107,7 +109,7 @@ export default function GenerateWorkoutPage() {
     }
   }, [])
 
-  // Check admin status and generation count on load
+  // Check admin status and generation count on load (with caching)
   useEffect(() => {
     async function loadInitialData() {
       try {
@@ -124,18 +126,33 @@ export default function GenerateWorkoutPage() {
 
           setIsAdmin(!!profileData?.is_admin)
 
-          // Check generation count for today
-          const now = new Date()
-          const dayStart = new Date(now)
-          dayStart.setHours(now.getHours() - 24)
+          // Check cache first for generation count
+          const cached = generationCountCacheRef.current
+          const now = Date.now()
+          
+          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+            // Use cached count (instant)
+            setGenerationsToday(cached.count)
+          } else {
+            // Fetch fresh count
+            const dayStart = new Date()
+            dayStart.setHours(dayStart.getHours() - 24)
 
-          const { count } = await supabase
-            .from('workouts')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .gte('created_at', dayStart.toISOString())
+            const { count } = await supabase
+              .from('workouts')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id)
+              .gte('created_at', dayStart.toISOString())
 
-          setGenerationsToday(count || 0)
+            const generationCount = count || 0
+            setGenerationsToday(generationCount)
+            
+            // Cache the count
+            generationCountCacheRef.current = {
+              count: generationCount,
+              timestamp: now
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading initial data:', error)
@@ -145,10 +162,10 @@ export default function GenerateWorkoutPage() {
     }
 
     loadInitialData()
-  }, [supabase])
+  }, [supabase, CACHE_DURATION])
 
-  // Validate inputs before submission
-  const validateInputs = (): string | null => {
+  // Memoize validation result
+  const validationError = useMemo(() => {
     if (muscleFocus.length < 1 || muscleFocus.length > 4) {
       return 'Please select 1-4 muscle groups';
     }
@@ -166,10 +183,10 @@ export default function GenerateWorkoutPage() {
     }
 
     return null;
-  };
+  }, [muscleFocus.length, workoutFocus.length, exerciseCount, specialInstructions]);
 
   // Handle click on muscle group button (for regular selection)
-  const toggleMuscleGroup = (id: string) => {
+  const toggleMuscleGroup = useCallback((id: string) => {
     // Update muscle focus state
     setMuscleFocus(prev => {
       const newFocus = prev.includes(id) 
@@ -189,10 +206,10 @@ export default function GenerateWorkoutPage() {
 
     // Clear any existing error when user interacts with the form
     if (error) setError(null);
-  };
+  }, [error, showSuggestions, workoutFocus.length]);
   
   // Handle workout focus selection (multiple, up to 3)
-  const toggleWorkoutFocus = (id: string) => {
+  const toggleWorkoutFocus = useCallback((id: string) => {
     // Update workout focus state
     setWorkoutFocus(prev => {
       // Always keep at least one focus selected
@@ -213,10 +230,9 @@ export default function GenerateWorkoutPage() {
 
     // Clear any existing error when user interacts with the form
     if (error) setError(null);
-  };
+  }, [error, muscleFocus.length, showSuggestions]);
 
   const generateWorkout = async () => {
-    const validationError = validateInputs();
     if (validationError) {
       setError(validationError);
       return;
@@ -230,11 +246,9 @@ export default function GenerateWorkoutPage() {
     try {
       // Step 1: Validating inputs
       setProgressiveStep(0);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for UX
 
       // Step 2: Preparing AI prompt
       setProgressiveStep(1);
-      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Check if this is a regeneration (excludeExercises in URL)
       const searchParams = new URLSearchParams(window.location.search)
@@ -349,7 +363,7 @@ export default function GenerateWorkoutPage() {
   return (
     <>
       {/* Main Content - Minimalistic Form */}
-      <div className="mx-auto max-w-3xl px-2 pb-10">
+      <section className="mx-auto w-full max-w-3xl px-2 pb-10">
         {/* Back button positioned like in Profile view */}
         <div className="mb-2">
           <Link href="/protected/workouts">
@@ -360,11 +374,30 @@ export default function GenerateWorkoutPage() {
           </Link>
         </div>
 
+        {/* Title Container */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-3 backdrop-blur-2xl mb-3"
+        >
+          <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-2xl opacity-50" />
+          <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-white/10 blur-2xl opacity-50" />
+          
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="h-5 w-5 text-white/90" />
+              <h1 className="text-xl font-semibold tracking-tight">Generate Workout</h1>
+            </div>
+            <p className="text-xs text-white/70">AI-powered workout tailored to your goals</p>
+          </div>
+        </motion.div>
+
         {/* Minimalistic Form Card */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
           className="rounded-lg border border-transparent bg-white/5 backdrop-blur-xl overflow-hidden"
         >
           {/* Form Content */}
@@ -517,7 +550,7 @@ export default function GenerateWorkoutPage() {
           workoutFocus={workoutFocus}
           isVisible={showSuggestions && !isGenerating && muscleFocus.length > 0 && workoutFocus.length > 0}
         />
-      </div>
+      </section>
 
       {/* Progressive Loading Overlay */}
       {loadingOverlay}
