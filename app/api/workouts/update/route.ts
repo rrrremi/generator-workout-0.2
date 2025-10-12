@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(request: NextRequest) {
   try {
     // Get the request body

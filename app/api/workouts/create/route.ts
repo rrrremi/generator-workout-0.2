@@ -13,6 +13,8 @@ interface CreateWorkoutRequest {
   exercises: Exercise[]
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()

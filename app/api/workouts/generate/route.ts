@@ -25,6 +25,8 @@ const getErrorMessage = (error: unknown) => {
 const RATE_LIMIT = 100;
 const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();

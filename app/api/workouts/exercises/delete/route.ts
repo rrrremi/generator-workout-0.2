@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { calculateWorkoutSummary } from '@/lib/exercises/operations';
 import { deriveMuscleFocusFromExercises } from '@/lib/workouts/muscleFocus';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { workoutId, workoutExerciseId, exerciseIndex } = await request.json();
