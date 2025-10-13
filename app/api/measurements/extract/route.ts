@@ -121,10 +121,19 @@ export async function POST(request: NextRequest) {
       throw new Error('No response from OpenAI');
     }
 
-    // Parse the JSON response
+    // Parse the JSON response (strip markdown code blocks if present)
     let parsedData: any;
     try {
-      parsedData = JSON.parse(content);
+      // Remove markdown code blocks (```json ... ```)
+      let cleanContent = content.trim();
+      if (cleanContent.startsWith('```')) {
+        // Remove opening ```json or ```
+        cleanContent = cleanContent.replace(/^```(?:json)?\s*\n?/, '');
+        // Remove closing ```
+        cleanContent = cleanContent.replace(/\n?```\s*$/, '');
+      }
+      
+      parsedData = JSON.parse(cleanContent);
       console.log('Parsed data:', JSON.stringify(parsedData, null, 2));
     } catch (parseError) {
       console.error('Failed to parse OpenAI response. Raw content:', content);
