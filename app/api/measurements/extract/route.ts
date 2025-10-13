@@ -84,14 +84,12 @@ export async function POST(request: NextRequest) {
             {
               type: 'image_url',
               image_url: {
-                url: imageUrl,
-                detail: 'high'
+                url: imageUrl
               }
             }
           ]
         }
       ],
-      response_format: { type: 'json_object' },
       max_tokens: 1000,
       temperature: 0.1 // Low temperature for more consistent extraction
     });
