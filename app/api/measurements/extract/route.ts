@@ -144,11 +144,11 @@ export async function POST(request: NextRequest) {
 
     // Validate and normalize measurements
     const validatedMeasurements = measurements
-      .filter(m => m.metric && typeof m.value === 'number' && m.unit)
+      .filter(m => m.metric && typeof m.value === 'number')
       .map(m => ({
         metric: m.metric.toLowerCase().trim(),
         value: parseFloat(m.value.toString()),
-        unit: m.unit.trim(),
+        unit: (m.unit || '').trim() || 'level', // Default to 'level' if empty
         raw_text: m.raw_text || '',
         confidence: m.confidence || 0.9
       }));
