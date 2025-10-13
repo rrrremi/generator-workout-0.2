@@ -28,6 +28,9 @@ export default function ManualEntryPage() {
   const [measurements, setMeasurements] = useState<ManualMeasurement[]>([
     { metric: 'weight', value: '', unit: 'kg' }
   ])
+  const [measurementDate, setMeasurementDate] = useState<string>(
+    new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -133,14 +136,15 @@ export default function ManualEntryPage() {
       }
 
       // Prepare measurements for insert
-      const now = new Date().toISOString()
+      // Convert selected date to ISO timestamp
+      const measuredAtTimestamp = new Date(measurementDate).toISOString()
       const measurementsToInsert = measurements.map(m => ({
         user_id: user.id,
         metric: m.metric,
         value: parseFloat(m.value),
         unit: m.unit,
         source: 'manual',
-        measured_at: now
+        measured_at: measuredAtTimestamp
       }))
 
       const { error: insertError } = await supabase
@@ -238,11 +242,29 @@ export default function ManualEntryPage() {
         </motion.div>
       )}
 
-      {/* Measurements Form */}
+      {/* Measurement Date */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
+        className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl"
+      >
+        <label className="block text-xs font-light text-white/70 mb-2">Measurement Date</label>
+        <input
+          type="date"
+          value={measurementDate}
+          onChange={(e) => setMeasurementDate(e.target.value)}
+          max={new Date().toISOString().split('T')[0]} // Can't select future dates
+          className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40"
+        />
+        <p className="text-xs text-white/50 mt-1">When were these measurements taken?</p>
+      </motion.div>
+
+      {/* Measurements Form */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
         className="space-y-3"
       >
         {measurements.map((measurement, index) => (
@@ -257,7 +279,13 @@ export default function ManualEntryPage() {
                 <select
                   value={measurement.metric}
                   onChange={(e) => updateMeasurement(index, 'metric', e.target.value)}
-                  className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40"
+                  className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40 appearance-none cursor-pointer hover:bg-white/15 transition-colors [&>option]:bg-gray-900 [&>option]:text-white"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.6)' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 0.75rem center',
+                    backgroundSize: '12px'
+                  }}
                 >
                   {getAvailableMetrics(measurement.metric).map(metric => (
                     <option key={metric.key} value={metric.key}>
