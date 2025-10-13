@@ -15,14 +15,13 @@ SET public = true
 WHERE id = 'measurement-images';
 
 -- Create simpler, more permissive policies
-CREATE POLICY "Authenticated users can upload measurement images"
+CREATE POLICY "Anyone can upload measurement images"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'measurement-images');
 
-CREATE POLICY "Authenticated users can view measurement images"
+CREATE POLICY "Anyone can view measurement images"
   ON storage.objects FOR SELECT
-  TO authenticated
   USING (bucket_id = 'measurement-images');
 
 CREATE POLICY "Users can delete own measurement images"
