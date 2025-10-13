@@ -260,31 +260,30 @@ export default function ManualEntryPage() {
         <p className="text-xs text-white/50 mt-1">When were these measurements taken?</p>
       </motion.div>
 
-      {/* Measurements Form */}
+      {/* Measurements Form - Compact Container */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="space-y-3"
+        className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 backdrop-blur-2xl"
       >
-        {measurements.map((measurement, index) => (
-          <div
-            key={index}
-            className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Metric Selector */}
-              <div>
-                <label className="block text-xs font-light text-white/70 mb-2">Metric</label>
+        <div className="p-3">
+          <div className="space-y-2">
+            {measurements.map((measurement, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 rounded-lg bg-white/5 p-2 hover:bg-white/10 transition-colors"
+              >
+                {/* Metric Selector - Compact */}
                 <select
                   value={measurement.metric}
                   onChange={(e) => updateMeasurement(index, 'metric', e.target.value)}
-                  className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40 appearance-none cursor-pointer hover:bg-white/15 transition-colors"
+                  className="flex-1 rounded-md bg-white/10 backdrop-blur-xl px-2 py-1.5 text-xs text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40 appearance-none cursor-pointer hover:bg-white/15 transition-colors"
                   style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.6)' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='rgba(255,255,255,0.6)' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                     backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 0.75rem center',
-                    backgroundSize: '12px',
+                    backgroundPosition: 'right 0.5rem center',
+                    backgroundSize: '10px',
                     colorScheme: 'dark'
                   }}
                 >
@@ -298,79 +297,72 @@ export default function ManualEntryPage() {
                     </option>
                   ))}
                 </select>
-              </div>
 
-              {/* Value Input */}
-              <div>
-                <label className="block text-xs font-light text-white/70 mb-2">Value</label>
+                {/* Value Input - Compact */}
                 <input
                   type="number"
                   step="0.1"
                   value={measurement.value}
                   onChange={(e) => updateMeasurement(index, 'value', e.target.value)}
                   placeholder="0.0"
-                  className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40"
+                  className="w-20 rounded-md bg-white/10 backdrop-blur-xl px-2 py-1.5 text-xs text-white placeholder-white/40 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40"
                 />
-              </div>
 
-              {/* Unit Display */}
-              <div>
-                <label className="block text-xs font-light text-white/70 mb-2">Unit</label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-lg bg-white/5 px-3 py-2 text-sm text-white/60">
-                    {measurement.unit}
-                  </div>
-                  {measurements.length > 1 && (
-                    <button
-                      onClick={() => removeMeasurement(index)}
-                      className="p-2 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
+                {/* Unit Display - Compact */}
+                <div className="w-12 rounded-md bg-white/5 px-2 py-1.5 text-xs text-white/60 text-center">
+                  {measurement.unit}
                 </div>
+
+                {/* Delete Button */}
+                {measurements.length > 1 && (
+                  <button
+                    onClick={() => removeMeasurement(index)}
+                    className="p-1.5 rounded-md bg-red-500/10 text-red-300 hover:bg-red-500/20 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-
-        {/* Add Measurement Button */}
-        {measurements.length < metrics.length && (
-          <button
-            onClick={addMeasurement}
-            className="w-full rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white/80 hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Another Measurement
-          </button>
-        )}
-
-        {/* Save Button */}
-        <div className="flex gap-3 pt-2">
-          <Link href="/protected/measurements" className="flex-1">
-            <button className="w-full rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors">
-              Cancel
+          {/* Add Measurement Button - Inside Container */}
+          {measurements.length < metrics.length && (
+            <button
+              onClick={addMeasurement}
+              className="w-full mt-2 rounded-md border border-white/10 bg-white/5 p-2 text-xs text-white/70 hover:bg-white/10 hover:text-white/90 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Another Measurement
             </button>
-          </Link>
-          <button
-            onClick={handleSave}
-            disabled={saving || measurements.length === 0}
-            className="flex-1 rounded-lg bg-fuchsia-500/20 px-4 py-2.5 text-sm font-medium text-fuchsia-300 hover:bg-fuchsia-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-fuchsia-300 border-t-transparent rounded-full"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Save Measurements
-              </>
-            )}
-          </button>
+          )}
         </div>
       </motion.div>
+
+      {/* Save Button */}
+      <div className="flex gap-3">
+        <Link href="/protected/measurements" className="flex-1">
+          <button className="w-full rounded-lg bg-white/10 px-4 py-2.5 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors">
+            Cancel
+          </button>
+        </Link>
+        <button
+          onClick={handleSave}
+          disabled={saving || measurements.length === 0}
+          className="flex-1 rounded-lg bg-fuchsia-500/20 px-4 py-2.5 text-sm font-medium text-fuchsia-300 hover:bg-fuchsia-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {saving ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-fuchsia-300 border-t-transparent rounded-full"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Save Measurements
+            </>
+          )}
+        </button>
+      </div>
     </section>
   )
 }

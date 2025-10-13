@@ -9,43 +9,44 @@ const openai = new OpenAI({
 });
 
 const EXTRACTION_PROMPT = `
-You are a medical data extraction assistant. Analyze this body composition report image and extract ALL visible measurements.
+You are a medical data extraction assistant. Analyze this InBody/body composition report image and extract ALL visible measurements including segmental data.
 
 CRITICAL REQUIREMENTS:
 1. Return ONLY valid JSON array (no other text)
-2. ALL metric keys MUST be in ENGLISH from this list: weight, height, bmi, body_fat_percent, skeletal_muscle_mass, visceral_fat_level, body_water_percent, protein, mineral, basal_metabolic_rate
-3. ALL units MUST be in ENGLISH: kg, %, cm, kcal, level
-4. Convert all numbers to use dots (77,1 → 77.1)
-5. Include confidence score (0.0-1.0) for each field
-6. If a field is unclear, set confidence < 0.8
+2. Extract EVERY measurement you can see - basic metrics, segmental data, water balance, scores, etc.
+3. ALL metric keys MUST be in ENGLISH from this comprehensive list:
+   - Basic: weight, height, bmi, body_fat_percent, body_fat_mass, skeletal_muscle_mass, lean_body_mass, fat_free_mass
+   - Water: total_body_water, intracellular_water, extracellular_water, ecw_ratio
+   - Nutrition: protein, mineral, body_cell_mass
+   - Fat: visceral_fat_level, waist_hip_ratio, obesity_grade
+   - Energy: basal_metabolic_rate, target_caloric_intake, ideal_body_weight
+   - Control: fat_control, muscle_control, weight_control
+   - Scores: fitness_score, inbody_score
+   - Segmental Lean Mass: segmental_lean_mass_right_arm, segmental_lean_mass_left_arm, segmental_lean_mass_trunk, segmental_lean_mass_right_leg, segmental_lean_mass_left_leg
+   - Segmental Fat Mass: segmental_fat_mass_right_arm, segmental_fat_mass_left_arm, segmental_fat_mass_trunk, segmental_fat_mass_right_leg, segmental_fat_mass_left_leg
+   - Segmental Analysis %: segmental_lean_analysis_right_arm, segmental_lean_analysis_left_arm, segmental_lean_analysis_trunk, segmental_lean_analysis_right_leg, segmental_lean_analysis_left_leg
+4. ALL units MUST be in ENGLISH: kg, %, cm, kcal, level, L, ratio, points, grade, Ω
+5. Convert all numbers to use dots (77,1 → 77.1)
+6. Include confidence score (0.0-1.0) for each field
 7. The image may have labels in Polish, Spanish, or other languages - TRANSLATE metric names to English
-8. Preserve original text in raw_text field (can be in any language)
+8. Look for segmental data in tables/charts (arms, legs, trunk)
+9. Preserve original text in raw_text field
 
 TRANSLATION EXAMPLES:
-- "Waga" → metric: "weight"
-- "Masa mięśniowa" → metric: "skeletal_muscle_mass"
-- "Tłuszcz trzewny" → metric: "visceral_fat_level"
-- "BMI" → metric: "bmi"
+- "Waga" → weight
+- "Masa mięśniowa" → skeletal_muscle_mass
+- "Tłuszcz trzewny" → visceral_fat_level
+- "Woda całkowita" → total_body_water
+- "Prawa ręka" / "Right Arm" → segmental_lean_mass_right_arm (for lean mass values)
+- "Lewa noga" / "Left Leg" → segmental_lean_mass_left_leg
 
-Expected JSON format (ENGLISH keys and units only):
+Expected JSON format:
 [
-  {
-    "metric": "weight",
-    "value": 77.1,
-    "unit": "kg",
-    "raw_text": "Waga: 77,1 kg",
-    "confidence": 0.96
-  },
-  {
-    "metric": "body_fat_percent",
-    "value": 15.2,
-    "unit": "%",
-    "raw_text": "Tłuszcz: 15,2%",
-    "confidence": 0.95
-  }
+  {"metric": "weight", "value": 77.1, "unit": "kg", "raw_text": "Waga: 77,1 kg", "confidence": 0.96},
+  {"metric": "segmental_lean_mass_right_arm", "value": 3.2, "unit": "kg", "raw_text": "Prawa ręka: 3,2", "confidence": 0.90}
 ]
 
-Extract measurements now (respond with JSON array only):
+Extract ALL measurements now (respond with JSON array only):
 `;
 
 interface ExtractionRequest {
