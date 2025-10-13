@@ -25,6 +25,9 @@ export default function UploadMeasurementPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [extractedData, setExtractedData] = useState<ExtractedMeasurement[]>([])
+  const [measurementDate, setMeasurementDate] = useState<string>(
+    new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
+  )
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
@@ -145,6 +148,8 @@ export default function UploadMeasurementPage() {
       }
 
       // Prepare measurements for insert
+      // Convert selected date to ISO timestamp
+      const measuredAtTimestamp = new Date(measurementDate).toISOString()
       const measurements = extractedData.map(m => ({
         user_id: user.id,
         metric: m.metric,
@@ -153,7 +158,7 @@ export default function UploadMeasurementPage() {
         source: 'ocr',
         confidence: m.confidence,
         image_url: imageUrl,
-        measured_at: new Date().toISOString()
+        measured_at: measuredAtTimestamp
       }))
 
       const { error: insertError } = await supabase
@@ -330,8 +335,22 @@ export default function UploadMeasurementPage() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-3"
         >
+          {/* Measurement Date */}
           <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl">
-            <h3 className="text-sm font-semibold text-white mb-3">Review Extracted Data</h3>
+            <label className="block text-xs font-light text-white/70 mb-2">Measurement Date</label>
+            <input
+              type="date"
+              value={measurementDate}
+              onChange={(e) => setMeasurementDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full rounded-lg bg-white/10 backdrop-blur-xl px-3 py-2 text-sm text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40"
+            />
+            <p className="text-xs text-white/50 mt-1">When were these measurements taken?</p>
+          </div>
+
+          {/* Extracted Data */}
+          <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl">
+            <h3 className="text-sm font-semibold text-white mb-3">Review Extracted Data ({extractedData.length} measurements)</h3>
             <div className="space-y-2">
               {extractedData.map((measurement, index) => (
                 <div key={index} className="flex items-center gap-3 rounded-lg bg-white/5 p-3">
