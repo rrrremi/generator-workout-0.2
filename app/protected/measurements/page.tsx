@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Scale, Upload, Plus, Calendar, TrendingUp } from 'lucide-react'
+import { Scale, Upload, Plus, Calendar, TrendingUp, Edit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Measurement {
@@ -113,12 +113,20 @@ export default function MeasurementsPage() {
                 <p className="text-xs text-white/70">Track your body composition progress</p>
               </div>
               
-              <Link href="/protected/measurements/upload">
-                <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-300 backdrop-blur-xl hover:bg-emerald-500/30 transition-colors">
-                  <Upload className="h-3.5 w-3.5" />
-                  Upload Report
-                </button>
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link href="/protected/measurements/manual">
+                  <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/15 transition-colors">
+                    <Edit className="h-3.5 w-3.5" />
+                    Manual Entry
+                  </button>
+                </Link>
+                <Link href="/protected/measurements/upload">
+                  <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-300 backdrop-blur-xl hover:bg-emerald-500/30 transition-colors">
+                    <Upload className="h-3.5 w-3.5" />
+                    Upload Report
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -149,12 +157,20 @@ export default function MeasurementsPage() {
               <p className="text-sm text-white/60 mb-6 max-w-md mx-auto">
                 Start tracking your body composition by uploading an InBody report or entering measurements manually.
               </p>
-              <Link href="/protected/measurements/upload">
-                <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors">
-                  <Upload className="h-4 w-4" />
-                  Upload Your First Report
-                </button>
-              </Link>
+              <div className="flex gap-3 justify-center">
+                <Link href="/protected/measurements/manual">
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors">
+                    <Edit className="h-4 w-4" />
+                    Manual Entry
+                  </button>
+                </Link>
+                <Link href="/protected/measurements/upload">
+                  <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors">
+                    <Upload className="h-4 w-4" />
+                    Upload Report
+                  </button>
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}
