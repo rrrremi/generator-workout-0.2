@@ -96,8 +96,16 @@ export async function POST(request: NextRequest) {
       temperature: 0.1 // Low temperature for more consistent extraction
     });
 
-    const content = response.choices[0].message.content;
+    const content = response.choices[0]?.message?.content;
+    
+    // Log the raw response for debugging
+    console.log('=== OPENAI RESPONSE ===');
+    console.log('Full response:', JSON.stringify(response, null, 2));
+    console.log('Content:', content);
+    console.log('======================');
+    
     if (!content) {
+      console.error('OpenAI returned no content. Full response:', response);
       throw new Error('No response from OpenAI');
     }
 
@@ -105,8 +113,10 @@ export async function POST(request: NextRequest) {
     let parsedData: any;
     try {
       parsedData = JSON.parse(content);
+      console.log('Parsed data:', JSON.stringify(parsedData, null, 2));
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', content);
+      console.error('Failed to parse OpenAI response. Raw content:', content);
+      console.error('Parse error:', parseError);
       throw new Error('Invalid JSON response from AI');
     }
 
