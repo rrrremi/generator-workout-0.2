@@ -15,7 +15,8 @@ import {
   Settings,
   LogOut,
   Home,
-  Target
+  Target,
+  Scale
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -130,6 +131,7 @@ export default function Header() {
     // Removed Dashboard button
     { href: '/protected/profile', label: 'Profile', icon: User, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
     { href: '/protected/workouts', label: 'Workouts', icon: Dumbbell, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
+    { href: '/protected/measurements', label: 'Measurements', icon: Scale, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
     // Removed Admin button
   ]
 
