@@ -145,18 +145,75 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error extracting measurements:', error);
+    // Detailed error logging
+    console.error('=== MEASUREMENT EXTRACTION ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    console.error('Error stack:', error.stack);
+    console.error('====================================');
     
     // Handle specific OpenAI errors
     if (error.code === 'insufficient_quota') {
       return NextResponse.json(
-        { error: 'AI service quota exceeded. Please try again later.' },
+        { 
+          error: 'AI service quota exceeded. Please add credits to your OpenAI account.',
+          code: 'insufficient_quota'
+        },
         { status: 503 }
       );
     }
 
+    if (error.code === 'model_not_found') {
+      return NextResponse.json(
+        { 
+          error: 'GPT-4o model not available. Your API key may not have access to vision models.',
+          code: 'model_not_found'
+        },
+        { status: 403 }
+      );
+    }
+
+    if (error.code === 'invalid_api_key') {
+      return NextResponse.json(
+        { 
+          error: 'Invalid OpenAI API key. Please check your .env.local file.',
+          code: 'invalid_api_key'
+        },
+        { status: 401 }
+      );
+    }
+
+    if (error.status === 401) {
+      return NextResponse.json(
+        { 
+          error: 'OpenAI authentication failed. Check your API key.',
+          code: 'auth_failed',
+          details: error.message
+        },
+        { status: 401 }
+      );
+    }
+
+    if (error.status === 429) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded. Please wait a moment and try again.',
+          code: 'rate_limit'
+        },
+        { status: 429 }
+      );
+    }
+
+    // Return detailed error for debugging
     return NextResponse.json(
-      { error: error.message || 'Failed to extract measurements' },
+      { 
+        error: error.message || 'Failed to extract measurements',
+        code: error.code || 'unknown_error',
+        type: error.type || 'unknown',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

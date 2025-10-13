@@ -110,17 +110,25 @@ export default function UploadMeasurementPage() {
         body: JSON.stringify({ imageUrl })
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Failed to extract measurements')
+        // Show detailed error from API
+        console.error('API Error Response:', data)
+        throw new Error(data.error || 'Failed to extract measurements')
       }
 
-      const data = await response.json()
       setExtractedData(data.measurements || [])
       setStep('review')
 
     } catch (err: any) {
-      console.error('Extraction error:', err)
-      setError(err.message || 'Failed to extract measurements. Please try manual entry.')
+      console.error('=== FRONTEND EXTRACTION ERROR ===')
+      console.error('Error:', err)
+      console.error('================================')
+      
+      // Show user-friendly error message
+      const errorMessage = err.message || 'Failed to extract measurements. Please try manual entry.'
+      setError(errorMessage)
       setStep('select')
     }
   }
