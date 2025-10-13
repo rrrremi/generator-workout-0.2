@@ -11,16 +11,23 @@ const openai = new OpenAI({
 const EXTRACTION_PROMPT = `
 You are a medical data extraction assistant. Analyze this body composition report image and extract ALL visible measurements.
 
-IMPORTANT RULES:
-1. Return ONLY valid JSON array
-2. Use metric keys from this list: weight, height, bmi, body_fat_percent, skeletal_muscle_mass, visceral_fat_level, body_water_percent, protein, mineral, basal_metabolic_rate
-3. Convert all numbers to use dots (77,1 → 77.1)
-4. Include confidence score (0.0-1.0) for each field
-5. If a field is unclear, set confidence < 0.8
-6. Preserve original text in raw_text field
-7. Handle multi-language labels (English, Polish, Spanish, etc.)
+CRITICAL REQUIREMENTS:
+1. Return ONLY valid JSON array (no other text)
+2. ALL metric keys MUST be in ENGLISH from this list: weight, height, bmi, body_fat_percent, skeletal_muscle_mass, visceral_fat_level, body_water_percent, protein, mineral, basal_metabolic_rate
+3. ALL units MUST be in ENGLISH: kg, %, cm, kcal, level
+4. Convert all numbers to use dots (77,1 → 77.1)
+5. Include confidence score (0.0-1.0) for each field
+6. If a field is unclear, set confidence < 0.8
+7. The image may have labels in Polish, Spanish, or other languages - TRANSLATE metric names to English
+8. Preserve original text in raw_text field (can be in any language)
 
-Expected format:
+TRANSLATION EXAMPLES:
+- "Waga" → metric: "weight"
+- "Masa mięśniowa" → metric: "skeletal_muscle_mass"
+- "Tłuszcz trzewny" → metric: "visceral_fat_level"
+- "BMI" → metric: "bmi"
+
+Expected JSON format (ENGLISH keys and units only):
 [
   {
     "metric": "weight",
@@ -28,10 +35,17 @@ Expected format:
     "unit": "kg",
     "raw_text": "Waga: 77,1 kg",
     "confidence": 0.96
+  },
+  {
+    "metric": "body_fat_percent",
+    "value": 15.2,
+    "unit": "%",
+    "raw_text": "Tłuszcz: 15,2%",
+    "confidence": 0.95
   }
 ]
 
-Extract measurements now:
+Extract measurements now (respond with JSON array only):
 `;
 
 interface ExtractionRequest {
