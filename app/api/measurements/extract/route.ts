@@ -40,13 +40,10 @@ TRANSLATION EXAMPLES:
 - "Prawa ręka" / "Right Arm" → segmental_lean_mass_right_arm (for lean mass values)
 - "Lewa noga" / "Left Leg" → segmental_lean_mass_left_leg
 
-Expected JSON format:
-[
-  {"metric": "weight", "value": 77.1, "unit": "kg", "raw_text": "Waga: 77,1 kg", "confidence": 0.96},
-  {"metric": "segmental_lean_mass_right_arm", "value": 3.2, "unit": "kg", "raw_text": "Prawa ręka: 3,2", "confidence": 0.90}
-]
+JSON format (compact, no extra text):
+[{"metric":"weight","value":77.1,"unit":"kg","raw_text":"Waga: 77,1 kg","confidence":0.96}]
 
-Extract ALL measurements now (respond with JSON array only):
+Extract ALL measurements (JSON array only, no markdown):
 `;
 
 interface ExtractionRequest {
@@ -105,7 +102,7 @@ export async function POST(request: NextRequest) {
           ]
         }
       ],
-      max_tokens: 1000,
+      max_tokens: 2000, // Increased for more measurements
       temperature: 0.1 // Low temperature for more consistent extraction
     });
 
