@@ -69,7 +69,12 @@ export default function UploadMeasurementPage() {
       }
 
       // Upload to Supabase Storage
-      const fileName = `${user.id}/${Date.now()}-${selectedFile.name}`
+      // Sanitize filename - remove special characters that Supabase doesn't allow
+      const sanitizedName = selectedFile.name
+        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
+        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      
+      const fileName = `${user.id}/${Date.now()}-${sanitizedName}`
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('measurement-images')
         .upload(fileName, selectedFile, {
