@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Users, Search, Shield, Mail, Calendar, BarChart3, ArrowLeft, RefreshCw, Crown } from 'lucide-react'
+import { Users, Search, Shield, Mail, Calendar, BarChart3, ArrowLeft, RefreshCw, Crown, Scale } from 'lucide-react'
 
 interface User {
   id: string
@@ -193,6 +193,35 @@ export default function AdminPage() {
                   {error}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <Link href="/protected/admin/metrics">
+              <div className="rounded-lg border border-white/10 bg-white/5 backdrop-blur-xl p-4 hover:bg-white/10 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/20">
+                    <Scale className="h-5 w-5 text-emerald-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Metrics Catalog</h3>
+                    <p className="text-xs text-white/60">Manage measurement types</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            <div className="rounded-lg border border-white/10 bg-white/5 backdrop-blur-xl p-4 opacity-50 cursor-not-allowed">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-white/10">
+                  <BarChart3 className="h-5 w-5 text-white/60" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white/70">Analytics</h3>
+                  <p className="text-xs text-white/50">Coming soon</p>
+                </div>
+              </div>
             </div>
           </div>
 
