@@ -14,7 +14,7 @@ You are a medical data extraction assistant. Analyze this InBody/body compositio
 CRITICAL REQUIREMENTS:
 1. Return ONLY valid JSON array (no other text)
 2. Extract EVERY measurement you can see - basic metrics, segmental data, water balance, scores, etc.
-3. ALL metric keys MUST be in ENGLISH from this comprehensive list:
+3. ALL metric keys MUST be in ENGLISH. Use snake_case format. Common metrics:
    - Basic: weight, height, bmi, body_fat_percent, body_fat_mass, skeletal_muscle_mass, lean_body_mass, fat_free_mass
    - Water: total_body_water, intracellular_water, extracellular_water, ecw_ratio
    - Nutrition: protein, mineral, body_cell_mass
@@ -22,9 +22,10 @@ CRITICAL REQUIREMENTS:
    - Energy: basal_metabolic_rate, target_caloric_intake, ideal_body_weight
    - Control: fat_control, muscle_control, weight_control
    - Scores: fitness_score, inbody_score
-   - Segmental Lean Mass: segmental_lean_mass_right_arm, segmental_lean_mass_left_arm, segmental_lean_mass_trunk, segmental_lean_mass_right_leg, segmental_lean_mass_left_leg
-   - Segmental Fat Mass: segmental_fat_mass_right_arm, segmental_fat_mass_left_arm, segmental_fat_mass_trunk, segmental_fat_mass_right_leg, segmental_fat_mass_left_leg
-   - Segmental Analysis %: segmental_lean_analysis_right_arm, segmental_lean_analysis_left_arm, segmental_lean_analysis_trunk, segmental_lean_analysis_right_leg, segmental_lean_analysis_left_leg
+   - Blood: cholesterol_total, cholesterol_hdl, cholesterol_ldl, triglycerides, glucose, hemoglobin, hematocrit
+   - Pressure: blood_pressure_systolic, blood_pressure_diastolic, heart_rate
+   - Segmental: segmental_lean_mass_right_arm, segmental_lean_mass_left_arm, segmental_lean_mass_trunk, segmental_lean_mass_right_leg, segmental_lean_mass_left_leg
+   - For ANY other measurement, create a descriptive snake_case key (e.g., "Vitamin D" → vitamin_d)
 4. ALL units MUST be in ENGLISH: kg, %, cm, kcal, level, L, ratio, points, grade, Ω
 5. Convert all numbers to use dots (77,1 → 77.1)
 6. Include confidence score (0.0-1.0) for each field
