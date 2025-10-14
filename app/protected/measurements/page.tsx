@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Scale, Upload, Plus, Calendar, TrendingUp, Edit } from 'lucide-react'
+import { Scale, Upload, Plus, Calendar, TrendingUp, Edit, Trash2, X, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Measurement {
@@ -28,6 +28,10 @@ export default function MeasurementsPage() {
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -60,6 +64,74 @@ export default function MeasurementsPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEdit = (measurement: Measurement) => {
+    setEditingId(measurement.id)
+    setEditValue(measurement.value.toString())
+  }
+
+  const handleSaveEdit = async (measurement: Measurement) => {
+    try {
+      setActionLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/measurements/${measurement.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          value: parseFloat(editValue),
+          unit: measurement.unit,
+          measured_at: measurement.measured_at
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update measurement')
+      }
+
+      // Update local state
+      setMeasurements(prev => prev.map(m => 
+        m.id === measurement.id ? { ...m, value: parseFloat(editValue) } : m
+      ))
+      setEditingId(null)
+    } catch (err: any) {
+      console.error('Error updating measurement:', err)
+      setError(err.message)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setEditValue('')
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      setActionLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/measurements/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete measurement')
+      }
+
+      // Remove from local state
+      setMeasurements(prev => prev.filter(m => m.id !== id))
+      setDeleteId(null)
+    } catch (err: any) {
+      console.error('Error deleting measurement:', err)
+      setError(err.message)
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -196,19 +268,69 @@ export default function MeasurementsPage() {
                 </div>
 
                 {/* Measurements Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {group.measurements.map((measurement) => (
                     <div
                       key={measurement.id}
-                      className="rounded-lg bg-white/5 p-3 hover:bg-white/10 transition-colors"
+                      className="rounded-lg bg-white/5 p-3 hover:bg-white/10 transition-colors relative group"
                     >
+                      {/* Action Buttons */}
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {editingId === measurement.id ? (
+                          <>
+                            <button
+                              onClick={() => handleSaveEdit(measurement)}
+                              disabled={actionLoading}
+                              className="p-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                            >
+                              <Save className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              disabled={actionLoading}
+                              className="p-1 rounded bg-white/10 text-white/60 hover:bg-white/20 transition-colors disabled:opacity-50"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEdit(measurement)}
+                              className="p-1 rounded bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(measurement.id)}
+                              className="p-1 rounded bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+
                       <div className="text-xs text-white/50 mb-1 capitalize">
                         {measurement.metric.replace(/_/g, ' ')}
                       </div>
-                      <div className="text-lg font-semibold text-white">
-                        {measurement.value}
-                        <span className="text-sm text-white/60 ml-1">{measurement.unit}</span>
-                      </div>
+                      
+                      {editingId === measurement.id ? (
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-full bg-white/10 rounded px-2 py-1 text-lg font-semibold text-white focus:outline-none focus:ring-1 focus:ring-emerald-400/40"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="text-lg font-semibold text-white">
+                          {measurement.value}
+                          <span className="text-sm text-white/60 ml-1">{measurement.unit}</span>
+                        </div>
+                      )}
+                      
                       {measurement.source === 'ocr' && measurement.confidence && (
                         <div className="text-xs text-white/40 mt-1">
                           {Math.round(measurement.confidence * 100)}% confidence
@@ -229,6 +351,45 @@ export default function MeasurementsPage() {
           </div>
         )}
       </motion.div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative overflow-hidden rounded-lg border border-white/10 bg-gray-900 p-6 backdrop-blur-2xl max-w-md mx-4"
+          >
+            <h3 className="text-lg font-semibold text-white mb-2">Delete Measurement?</h3>
+            <p className="text-sm text-white/60 mb-6">
+              This action cannot be undone. The measurement will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                disabled={actionLoading}
+                className="flex-1 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteId)}
+                disabled={actionLoading}
+                className="flex-1 rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {actionLoading ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-red-300 border-t-transparent rounded-full" />
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </section>
   )
 }
