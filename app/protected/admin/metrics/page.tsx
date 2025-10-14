@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronLeft, Plus, Edit, Trash2, Save, X, Search } from 'lucide-react'
+import { ChevronLeft, Plus, Edit, Trash2, Save, X, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Metric {
@@ -32,6 +32,8 @@ export default function AdminMetricsPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [sortField, setSortField] = useState<keyof Metric>('sort_order')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const supabase = createClient()
 
   useEffect(() => {
@@ -39,8 +41,8 @@ export default function AdminMetricsPage() {
   }, [])
 
   useEffect(() => {
-    filterMetrics()
-  }, [searchTerm, categoryFilter, metrics])
+    filterAndSortMetrics()
+  }, [searchTerm, categoryFilter, sortField, sortDirection, metrics])
 
   const checkAdminAndFetch = async () => {
     try {
@@ -91,21 +93,67 @@ export default function AdminMetricsPage() {
     }
   }
 
-  const filterMetrics = () => {
+  const filterAndSortMetrics = () => {
     let filtered = [...metrics]
 
+    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(m =>
         m.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.key.toLowerCase().includes(searchTerm.toLowerCase())
+        m.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.unit.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
+    // Apply category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(m => m.category === categoryFilter)
     }
 
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal = a[sortField]
+      let bVal = b[sortField]
+
+      // Handle null values
+      if (aVal === null) aVal = sortDirection === 'asc' ? Infinity : -Infinity
+      if (bVal === null) bVal = sortDirection === 'asc' ? Infinity : -Infinity
+
+      // Compare values
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal)
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+      }
+
+      return 0
+    })
+
     setFilteredMetrics(filtered)
+  }
+
+  const handleSort = (field: keyof Metric) => {
+    if (sortField === field) {
+      // Toggle direction if same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New field, default to ascending
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: keyof Metric }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 text-white/30" />
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="h-3 w-3 text-emerald-400" />
+      : <ArrowDown className="h-3 w-3 text-emerald-400" />
   }
 
   const categories = Array.from(new Set(metrics.map(m => m.category)))
@@ -292,12 +340,52 @@ export default function AdminMetricsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left p-3 text-xs font-medium text-white/70">Key</th>
-                  <th className="text-left p-3 text-xs font-medium text-white/70">Display Name</th>
-                  <th className="text-left p-3 text-xs font-medium text-white/70">Unit</th>
-                  <th className="text-left p-3 text-xs font-medium text-white/70">Category</th>
+                  <th className="text-left p-3 text-xs font-medium text-white/70">
+                    <button
+                      onClick={() => handleSort('key')}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
+                    >
+                      Key
+                      <SortIcon field="key" />
+                    </button>
+                  </th>
+                  <th className="text-left p-3 text-xs font-medium text-white/70">
+                    <button
+                      onClick={() => handleSort('display_name')}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
+                    >
+                      Display Name
+                      <SortIcon field="display_name" />
+                    </button>
+                  </th>
+                  <th className="text-left p-3 text-xs font-medium text-white/70">
+                    <button
+                      onClick={() => handleSort('unit')}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
+                    >
+                      Unit
+                      <SortIcon field="unit" />
+                    </button>
+                  </th>
+                  <th className="text-left p-3 text-xs font-medium text-white/70">
+                    <button
+                      onClick={() => handleSort('category')}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
+                    >
+                      Category
+                      <SortIcon field="category" />
+                    </button>
+                  </th>
                   <th className="text-left p-3 text-xs font-medium text-white/70">Range</th>
-                  <th className="text-left p-3 text-xs font-medium text-white/70">Order</th>
+                  <th className="text-left p-3 text-xs font-medium text-white/70">
+                    <button
+                      onClick={() => handleSort('sort_order')}
+                      className="flex items-center gap-1 hover:text-white transition-colors"
+                    >
+                      Order
+                      <SortIcon field="sort_order" />
+                    </button>
+                  </th>
                   <th className="text-right p-3 text-xs font-medium text-white/70">Actions</th>
                 </tr>
               </thead>
