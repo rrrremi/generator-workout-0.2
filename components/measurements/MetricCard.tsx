@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Sparkline } from './Sparkline';
 import type { MetricSummary } from '@/hooks/useMeasurementsSummary';
 
@@ -7,8 +8,9 @@ interface MetricCardProps {
 
 export function MetricCard({ metric }: MetricCardProps) {
   return (
-    <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl hover:bg-white/10 transition-colors">
-      <div className="flex items-center justify-between gap-4">
+    <Link href={`/protected/measurements/${metric.metric}`}>
+      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl hover:bg-white/10 transition-colors cursor-pointer">
+        <div className="flex items-center justify-between gap-4">
         {/* Left: Metric Info */}
         <div className="flex-1 min-w-0">
           <p className="text-xs text-white/60 uppercase tracking-wide truncate">
@@ -40,6 +42,7 @@ export function MetricCard({ metric }: MetricCardProps) {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </Link>
   );
 }
