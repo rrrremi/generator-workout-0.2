@@ -316,19 +316,19 @@ export default function ManualEntryPage() {
                   
                   {/* Dropdown */}
                   {openDropdown === index && (
-                    <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md bg-gray-900 border border-white/20 shadow-lg">
+                    <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg bg-gray-900/95 backdrop-blur-xl border border-white/20 shadow-2xl">
                       {getFilteredMetrics(index).map((metric) => (
                         <button
                           key={metric.key}
                           onClick={() => selectMetric(index, metric.key)}
-                          className="w-full text-left px-3 py-2 text-xs text-white hover:bg-white/10 transition-colors"
+                          className="w-full text-left px-3 py-2 text-xs text-white hover:bg-fuchsia-500/20 transition-colors border-b border-white/5 last:border-b-0"
                         >
-                          <div className="font-medium">{metric.display_name}</div>
-                          <div className="text-white/50 text-[10px]">{metric.unit}</div>
+                          <div className="font-semibold">{metric.display_name}</div>
+                          <div className="text-white/60 text-[10px] mt-0.5">{metric.unit}</div>
                         </button>
                       ))}
                       {getFilteredMetrics(index).length === 0 && (
-                        <div className="px-3 py-2 text-xs text-white/50">No metrics found</div>
+                        <div className="px-3 py-3 text-xs text-white/50 text-center">No metrics found</div>
                       )}
                     </div>
                   )}
