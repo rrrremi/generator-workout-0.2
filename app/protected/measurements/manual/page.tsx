@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronLeft, Save, Plus, Trash2, CheckCircle } from 'lucide-react'
+import { ChevronLeft, Save, Plus, Trash2, CheckCircle, Search, PlusCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MetricCatalog {
@@ -16,6 +16,13 @@ interface MetricCatalog {
   max_value: number | null
 }
 
+interface DatabaseMetric {
+  metric: string
+  unit: string
+  count: number
+  in_catalog: boolean
+}
+
 interface ManualMeasurement {
   metric: string
   value: string
@@ -25,6 +32,7 @@ interface ManualMeasurement {
 export default function ManualEntryPage() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<MetricCatalog[]>([])
+  const [dbMetrics, setDbMetrics] = useState<DatabaseMetric[]>([])
   const [measurements, setMeasurements] = useState<ManualMeasurement[]>([
     { metric: 'weight', value: '', unit: 'kg' }
   ])
@@ -35,10 +43,24 @@ export default function ManualEntryPage() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerms, setSearchTerms] = useState<{ [key: number]: string }>({})
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
     fetchMetrics()
+    fetchDatabaseMetrics()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.metric-autocomplete')) {
+        setOpenDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchMetrics = async () => {
@@ -55,6 +77,44 @@ export default function ManualEntryPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchDatabaseMetrics = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Get all unique metrics from user's measurements
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('metric, unit')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      // Group by metric and count occurrences
+      const metricMap = new Map<string, { unit: string; count: number }>()
+      data?.forEach(m => {
+        const existing = metricMap.get(m.metric)
+        if (existing) {
+          existing.count++
+        } else {
+          metricMap.set(m.metric, { unit: m.unit, count: 1 })
+        }
+      })
+
+      // Convert to array and check if in catalog
+      const dbMetricsList: DatabaseMetric[] = Array.from(metricMap.entries()).map(([metric, info]) => ({
+        metric,
+        unit: info.unit,
+        count: info.count,
+        in_catalog: metrics.some(m => m.key === metric)
+      }))
+
+      setDbMetrics(dbMetricsList)
+    } catch (err: any) {
+      console.error('Error fetching database metrics:', err)
     }
   }
 
@@ -168,7 +228,54 @@ export default function ManualEntryPage() {
   }
 
   const getMetricDisplayName = (key: string) => {
-    return metrics.find(m => m.key === key)?.display_name || key
+    const catalogMetric = metrics.find(m => m.key === key)
+    if (catalogMetric) return catalogMetric.display_name
+    
+    // Format database metric name
+    return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+  }
+
+  const getFilteredSuggestions = (index: number) => {
+    const searchTerm = searchTerms[index]?.toLowerCase() || ''
+    if (!searchTerm) return []
+
+    const suggestions: Array<{ key: string; display: string; unit: string; source: 'catalog' | 'database'; count?: number }> = []
+
+    // Add catalog metrics
+    metrics.forEach(m => {
+      if (m.display_name.toLowerCase().includes(searchTerm) || m.key.toLowerCase().includes(searchTerm)) {
+        suggestions.push({
+          key: m.key,
+          display: m.display_name,
+          unit: m.unit,
+          source: 'catalog'
+        })
+      }
+    })
+
+    // Add database metrics not in catalog
+    dbMetrics.forEach(m => {
+      if (!m.in_catalog && (m.metric.toLowerCase().includes(searchTerm))) {
+        suggestions.push({
+          key: m.metric,
+          display: getMetricDisplayName(m.metric),
+          unit: m.unit,
+          source: 'database',
+          count: m.count
+        })
+      }
+    })
+
+    return suggestions.slice(0, 10) // Limit to 10 suggestions
+  }
+
+  const selectMetric = (index: number, metricKey: string, unit: string) => {
+    updateMeasurement(index, 'metric', metricKey)
+    const updated = [...measurements]
+    updated[index].unit = unit
+    setMeasurements(updated)
+    setSearchTerms({ ...searchTerms, [index]: '' })
+    setOpenDropdown(null)
   }
 
   if (loading) {
@@ -269,23 +376,62 @@ export default function ManualEntryPage() {
                 key={index}
                 className="flex items-center gap-2 rounded-lg bg-white/5 p-2 hover:bg-white/10 transition-colors"
               >
-                {/* Metric Selector */}
-                <select
-                  value={measurement.metric}
-                  onChange={(e) => updateMeasurement(index, 'metric', e.target.value)}
-                  className="flex-1 rounded-md bg-gray-900 border border-gray-700 px-2 py-1.5 text-xs text-white focus:bg-gray-800 focus:border-fuchsia-400 focus:outline-none cursor-pointer"
-                  style={{ colorScheme: 'dark' }}
-                >
-                  {metrics.map((metric) => (
-                    <option 
-                      key={metric.key} 
-                      value={metric.key}
-                      style={{ backgroundColor: '#1f2937', color: '#ffffff' }}
-                    >
-                      {metric.display_name}
-                    </option>
-                  ))}
-                </select>
+                {/* Metric Autocomplete */}
+                <div className="flex-1 relative metric-autocomplete">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerms[index] !== undefined ? searchTerms[index] : getMetricDisplayName(measurement.metric)}
+                      onChange={(e) => {
+                        setSearchTerms({ ...searchTerms, [index]: e.target.value })
+                        setOpenDropdown(index)
+                      }}
+                      onFocus={() => {
+                        setSearchTerms({ ...searchTerms, [index]: '' })
+                        setOpenDropdown(index)
+                      }}
+                      placeholder="Type to search..."
+                      className="w-full rounded-md bg-gray-900 border border-gray-700 px-2 py-1.5 pr-7 text-xs text-white placeholder-white/50 focus:bg-gray-800 focus:border-fuchsia-400 focus:outline-none"
+                    />
+                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40 pointer-events-none" />
+                  </div>
+
+                  {/* Dropdown */}
+                  {openDropdown === index && (
+                    <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-md bg-gray-800 border border-gray-600 shadow-xl">
+                      {getFilteredSuggestions(index).length > 0 ? (
+                        <>
+                          {getFilteredSuggestions(index).map((suggestion) => (
+                            <button
+                              key={suggestion.key}
+                              onClick={() => selectMetric(index, suggestion.key, suggestion.unit)}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-fuchsia-500/30 transition-colors border-b border-white/5 last:border-b-0"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="text-white font-medium">{suggestion.display}</div>
+                                  <div className="text-white/60 text-[10px]">{suggestion.unit}</div>
+                                </div>
+                                {suggestion.source === 'database' ? (
+                                  <div className="flex items-center gap-1 text-[10px]" title="Not in catalog - click to use">
+                                    <span className="text-amber-400">📊 {suggestion.count}x</span>
+                                    <PlusCircle className="h-3 w-3 text-amber-400" />
+                                  </div>
+                                ) : (
+                                  <span className="text-emerald-400 text-[10px]">✓ Catalog</span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-white/60">
+                          {searchTerms[index] ? 'No matches found' : 'Start typing to search...'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Value Input - Compact */}
                 <input
