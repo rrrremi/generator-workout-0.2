@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { cacheHelper, cacheKeys } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,6 +133,9 @@ export async function PATCH(
       );
     }
 
+    // Invalidate cache for this user
+    cacheHelper.invalidate(cacheKeys.userMeasurements(user.id));
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     console.error('PATCH /api/measurements/[id] error:', error);
@@ -204,6 +208,9 @@ export async function DELETE(
       console.error('Delete error:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Invalidate cache for this user
+    cacheHelper.invalidate(cacheKeys.userMeasurements(user.id));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { cacheHelper, cacheKeys, cacheTTL } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,43 +34,53 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Single optimized query using existing indexes
-    const { data, error } = await supabase.rpc('get_measurements_summary', {
-      p_user_id: user.id
-    });
+    // Try to get from cache first
+    const cacheKey = cacheKeys.measurementsSummary(user.id);
+    const cachedData = await cacheHelper.getOrSet(
+      cacheKey,
+      async () => {
+        // Single optimized query using existing indexes
+        const { data, error } = await supabase.rpc('get_measurements_summary', {
+          p_user_id: user.id
+        });
 
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+        if (error) {
+          console.error('Database error:', error);
+          throw error;
+        }
 
-    // Get metrics catalog for display names
-    const { data: catalog } = await supabase
-      .from('metrics_catalog')
-      .select('key, display_name');
+        // Get metrics catalog for display names
+        const { data: catalog } = await supabase
+          .from('metrics_catalog')
+          .select('key, display_name');
 
-    const catalogMap = new Map(
-      catalog?.map(c => [c.key, c.display_name]) || []
+        const catalogMap = new Map(
+          catalog?.map(c => [c.key, c.display_name]) || []
+        );
+
+        // Transform data
+        const metrics: MetricSummary[] = (data || []).map((row: any) => ({
+          metric: row.metric,
+          display_name: catalogMap.get(row.metric) || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          latest_value: row.latest_value,
+          unit: row.unit,
+          latest_date: row.latest_date,
+          source: row.source,
+          confidence: row.confidence,
+          sparkline_points: row.sparkline_points || [],
+          point_count: row.point_count || 0
+        }));
+
+        return metrics;
+      },
+      cacheTTL.MEDIUM // 5 minutes cache
     );
 
-    // Transform data
-    const metrics: MetricSummary[] = (data || []).map((row: any) => ({
-      metric: row.metric,
-      display_name: catalogMap.get(row.metric) || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-      latest_value: row.latest_value,
-      unit: row.unit,
-      latest_date: row.latest_date,
-      source: row.source,
-      confidence: row.confidence,
-      sparkline_points: row.sparkline_points || [],
-      point_count: row.point_count || 0
-    }));
-
     const queryTime = Date.now() - startTime;
-    console.log(`Measurements summary query: ${queryTime}ms, ${metrics.length} metrics`);
+    console.log(`Measurements summary query: ${queryTime}ms, ${cachedData.length} metrics`);
 
     return NextResponse.json({
-      metrics,
+      metrics: cachedData,
       // Only include query time in development
       ...(process.env.NODE_ENV === 'development' && { query_time_ms: queryTime })
     });
