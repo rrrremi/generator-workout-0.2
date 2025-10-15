@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, Calendar, TrendingUp, Edit2, Trash2, Save, X } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkline } from '@/components/measurements/Sparkline'
+import { MEASUREMENTS_QUERY_OPTIONS } from '@/lib/react-query-config'
 
 interface Measurement {
   id: string
@@ -48,8 +49,7 @@ export default function MetricDetailPage() {
       if (!response.ok) throw new Error('Failed to fetch metric detail')
       return response.json()
     },
-    staleTime: 1 * 60 * 1000,
-    refetchOnMount: 'always',
+    ...MEASUREMENTS_QUERY_OPTIONS,
   })
 
   // Sort measurements

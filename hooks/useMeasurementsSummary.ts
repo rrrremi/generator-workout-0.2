@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { MEASUREMENTS_QUERY_OPTIONS } from '@/lib/react-query-config';
 
 export interface SparklinePoint {
   value: number;
@@ -34,10 +35,6 @@ export function useMeasurementsSummary() {
       
       return response.json();
     },
-    staleTime: 1 * 60 * 1000, // 1 minute (reduced from 5)
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always', // Always refetch when component mounts
-    retry: 1,
+    ...MEASUREMENTS_QUERY_OPTIONS,
   });
 }
