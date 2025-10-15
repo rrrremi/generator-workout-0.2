@@ -169,9 +169,9 @@ export default function UploadMeasurementPage() {
 
       setStep('success')
       
-      // Redirect after 2 seconds
+      // Redirect after 2 seconds with refresh parameter
       setTimeout(() => {
-        router.push('/protected/measurements')
+        router.push('/protected/measurements?refresh=true')
       }, 2000)
 
     } catch (err: any) {

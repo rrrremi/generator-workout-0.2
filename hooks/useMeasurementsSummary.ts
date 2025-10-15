@@ -34,9 +34,10 @@ export function useMeasurementsSummary() {
       
       return response.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    staleTime: 1 * 60 * 1000, // 1 minute (reduced from 5)
+    gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always', // Always refetch when component mounts
     retry: 1,
   });
 }

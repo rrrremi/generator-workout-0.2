@@ -17,16 +17,13 @@ function CustomTooltip({ active, payload, unit }: TooltipProps) {
     const data = payload[0].payload;
     const date = new Date(data.date).toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      day: 'numeric'
     });
     
     return (
-      <div className="rounded-lg border border-white/20 bg-gray-900/95 px-2 py-1 text-xs backdrop-blur-sm">
-        <p className="font-semibold text-white">
-          {data.value.toFixed(1)} {unit}
-        </p>
-        <p className="text-white/60">{date}</p>
+      <div className="rounded border border-white/10 bg-gray-900/80 px-1.5 py-0.5 text-[10px] backdrop-blur-sm">
+        <span className="font-medium text-white">{data.value.toFixed(1)} {unit}</span>
+        <span className="text-white/50 ml-1.5">· {date}</span>
       </div>
     );
   }
