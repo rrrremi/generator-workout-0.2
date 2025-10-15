@@ -1,165 +1,33 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Scale, Upload, Plus, Calendar, TrendingUp, Edit, Trash2, X, Save } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-
-interface Measurement {
-  id: string
-  metric: string
-  value: number
-  unit: string
-  measured_at: string
-  source: string
-  confidence?: number
-  notes?: string
-}
-
-interface GroupedMeasurements {
-  date: string
-  measurements: Measurement[]
-}
+import { Scale, Upload, Plus } from 'lucide-react'
+import { useMeasurementsSummary } from '@/hooks/useMeasurementsSummary'
+import { MetricCard } from '@/components/measurements/MetricCard'
 
 export default function MeasurementsPage() {
-  const router = useRouter()
-  const [measurements, setMeasurements] = useState<Measurement[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState<string>('')
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [actionLoading, setActionLoading] = useState(false)
-  const supabase = createClient()
+  const { data, isLoading, error } = useMeasurementsSummary()
 
-  useEffect(() => {
-    fetchMeasurements()
-  }, [])
-
-  const fetchMeasurements = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-
-      const { data, error: fetchError } = await supabase
-        .from('measurements')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('measured_at', { ascending: false })
-        .limit(100)
-
-      if (fetchError) throw fetchError
-
-      setMeasurements(data || [])
-    } catch (err: any) {
-      console.error('Error fetching measurements:', err)
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleEdit = (measurement: Measurement) => {
-    setEditingId(measurement.id)
-    setEditValue(measurement.value.toString())
-  }
-
-  const handleSaveEdit = async (measurement: Measurement) => {
-    try {
-      setActionLoading(true)
-      setError(null)
-
-      const response = await fetch(`/api/measurements/${measurement.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: parseFloat(editValue),
-          unit: measurement.unit,
-          measured_at: measurement.measured_at
-        })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to update measurement')
-      }
-
-      // Update local state
-      setMeasurements(prev => prev.map(m => 
-        m.id === measurement.id ? { ...m, value: parseFloat(editValue) } : m
-      ))
-      setEditingId(null)
-    } catch (err: any) {
-      console.error('Error updating measurement:', err)
-      setError(err.message)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setEditValue('')
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      setActionLoading(true)
-      setError(null)
-
-      const response = await fetch(`/api/measurements/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to delete measurement')
-      }
-
-      // Remove from local state
-      setMeasurements(prev => prev.filter(m => m.id !== id))
-      setDeleteId(null)
-    } catch (err: any) {
-      console.error('Error deleting measurement:', err)
-      setError(err.message)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  // Group measurements by date
-  const groupedMeasurements = measurements.reduce((groups: GroupedMeasurements[], measurement) => {
-    const date = new Date(measurement.measured_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-
-    const existingGroup = groups.find(g => g.date === date)
-    if (existingGroup) {
-      existingGroup.measurements.push(measurement)
-    } else {
-      groups.push({ date, measurements: [measurement] })
-    }
-
-    return groups
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-fuchsia-500 border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
       </div>
     )
   }
+
+  if (error) {
+    return (
+      <section className="mx-auto w-full max-w-3xl px-2 pb-10">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+          Error loading measurements. Please try again.
+        </div>
+      </section>
+    )
+  }
+
+  const hasMetrics = data?.metrics && data.metrics.length > 0
 
   return (
     <section className="mx-auto w-full max-w-3xl px-2 pb-10">
@@ -167,229 +35,71 @@ export default function MeasurementsPage() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
         className="space-y-3"
       >
-        {/* Title Container */}
-        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-3 backdrop-blur-2xl">
-          <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10 blur-2xl opacity-50" />
-          <div className="absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-white/10 blur-2xl opacity-50" />
-
-          <div className="relative">
-            <div className="flex items-center justify-between">
+        {/* Title */}
+        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-3 backdrop-blur-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scale className="h-5 w-5 text-white/70" />
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Scale className="h-5 w-5 text-white/90" />
-                  <h1 className="text-xl font-semibold tracking-tight">Your Measurements</h1>
-                </div>
-                <p className="text-xs text-white/70">Track your body composition progress</p>
-              </div>
-              
-              <div className="flex items-center gap-1.5">
-                <Link href="/protected/measurements/manual">
-                  <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/15 transition-colors">
-                    <Edit className="h-3.5 w-3.5" />
-                    Manual Entry
-                  </button>
-                </Link>
-                <Link href="/protected/measurements/upload">
-                  <button className="flex items-center gap-1.5 rounded-lg border border-transparent bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-300 backdrop-blur-xl hover:bg-emerald-500/30 transition-colors">
-                    <Upload className="h-3.5 w-3.5" />
-                    Upload Report
-                  </button>
-                </Link>
+                <h1 className="text-xl font-semibold">Your Measurements</h1>
+                <p className="text-xs text-white/70">Track your body composition and health metrics</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
-            {error}
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/protected/measurements/upload">
+            <button className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-3 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors">
+              <Upload className="h-4 w-4" />
+              Upload Image
+            </button>
+          </Link>
+          <Link href="/protected/measurements/manual">
+            <button className="w-full flex items-center justify-center gap-2 rounded-lg bg-fuchsia-500/20 px-4 py-3 text-sm font-medium text-fuchsia-300 hover:bg-fuchsia-500/30 transition-colors">
+              <Plus className="h-4 w-4" />
+              Manual Entry
+            </button>
+          </Link>
+        </div>
+
+        {/* Empty State */}
+        {!hasMetrics && (
+          <div className="rounded-lg border border-white/10 bg-white/5 p-8 text-center backdrop-blur-2xl">
+            <Scale className="h-12 w-12 mx-auto text-white/30 mb-3" />
+            <h3 className="text-lg font-medium text-white mb-2">No measurements yet</h3>
+            <p className="text-sm text-white/60 mb-4">
+              Upload an InBody report or add measurements manually to get started
+            </p>
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && measurements.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-8 backdrop-blur-2xl text-center"
-          >
-            <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-500/20 blur-3xl opacity-30" />
-            <div className="absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-fuchsia-500/20 blur-3xl opacity-30" />
-            
-            <div className="relative">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
-                <Scale className="h-8 w-8 text-white/60" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No Measurements Yet</h3>
-              <p className="text-sm text-white/60 mb-6 max-w-md mx-auto">
-                Start tracking your body composition by uploading an InBody report or entering measurements manually.
+        {/* Metrics Grid */}
+        {hasMetrics && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-white/60">
+                {data.metrics.length} {data.metrics.length === 1 ? 'metric' : 'metrics'} tracked
               </p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/protected/measurements/manual">
-                  <button className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors">
-                    <Edit className="h-4 w-4" />
-                    Manual Entry
-                  </button>
-                </Link>
-                <Link href="/protected/measurements/upload">
-                  <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors">
-                    <Upload className="h-4 w-4" />
-                    Upload Report
-                  </button>
-                </Link>
-              </div>
+              {data.query_time_ms && (
+                <p className="text-xs text-white/40">
+                  Loaded in {data.query_time_ms}ms
+                </p>
+              )}
             </div>
-          </motion.div>
-        )}
-
-        {/* Measurements List */}
-        {groupedMeasurements.length > 0 && (
-          <div className="space-y-4">
-            {groupedMeasurements.map((group, groupIndex) => (
-              <motion.div
-                key={group.date}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: groupIndex * 0.05 }}
-                className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl"
-              >
-                {/* Date Header */}
-                <div className="flex items-center gap-2 mb-3 pb-2 border-b border-white/10">
-                  <Calendar className="h-4 w-4 text-white/60" />
-                  <h3 className="text-sm font-medium text-white/90">{group.date}</h3>
-                  <span className="ml-auto text-xs text-white/50">
-                    {group.measurements.length} measurement{group.measurements.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-
-                {/* Measurements Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {group.measurements.map((measurement) => (
-                    <div
-                      key={measurement.id}
-                      className="rounded-lg bg-white/5 p-3 hover:bg-white/10 transition-colors relative group"
-                    >
-                      {/* Action Buttons */}
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {editingId === measurement.id ? (
-                          <>
-                            <button
-                              onClick={() => handleSaveEdit(measurement)}
-                              disabled={actionLoading}
-                              className="p-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
-                            >
-                              <Save className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              disabled={actionLoading}
-                              className="p-1 rounded bg-white/10 text-white/60 hover:bg-white/20 transition-colors disabled:opacity-50"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEdit(measurement)}
-                              className="p-1 rounded bg-white/10 text-white/60 hover:bg-white/20 transition-colors"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(measurement.id)}
-                              className="p-1 rounded bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-colors"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="text-xs text-white/50 mb-1 capitalize">
-                        {measurement.metric.replace(/_/g, ' ')}
-                      </div>
-                      
-                      {editingId === measurement.id ? (
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="w-full bg-white/10 rounded px-2 py-1 text-lg font-semibold text-white focus:outline-none focus:ring-1 focus:ring-emerald-400/40"
-                          autoFocus
-                        />
-                      ) : (
-                        <div className="text-lg font-semibold text-white">
-                          {measurement.value}
-                          <span className="text-sm text-white/60 ml-1">{measurement.unit}</span>
-                        </div>
-                      )}
-                      
-                      {measurement.source === 'ocr' && measurement.confidence && (
-                        <div className="text-xs text-white/40 mt-1">
-                          {Math.round(measurement.confidence * 100)}% confidence
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Source Badge */}
-                <div className="mt-3 pt-2 border-t border-white/5">
-                  <span className="text-xs text-white/40">
-                    Source: {group.measurements[0].source === 'ocr' ? '📸 OCR Extraction' : '✍️ Manual Entry'}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+            
+            <div className="grid gap-3">
+              {data.metrics.map((metric) => (
+                <MetricCard key={metric.metric} metric={metric} />
+              ))}
+            </div>
           </div>
         )}
       </motion.div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative overflow-hidden rounded-lg border border-white/10 bg-gray-900 p-6 backdrop-blur-2xl max-w-md mx-4"
-          >
-            <h3 className="text-lg font-semibold text-white mb-2">Delete Measurement?</h3>
-            <p className="text-sm text-white/60 mb-6">
-              This action cannot be undone. The measurement will be permanently deleted.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteId(null)}
-                disabled={actionLoading}
-                className="flex-1 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white/90 hover:bg-white/15 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                disabled={actionLoading}
-                className="flex-1 rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {actionLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-red-300 border-t-transparent rounded-full" />
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </section>
   )
 }
+    

@@ -4,6 +4,7 @@ import './globals.css'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import PsychedelicBackground from '@/components/layout/PsychedelicBackground'
+import { ReactQueryProvider } from '@/components/providers/ReactQueryProvider'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -58,17 +59,19 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body suppressHydrationWarning className="min-h-screen text-slate-100 font-sans antialiased overflow-x-hidden" style={{ background: '#5a7f65' }}>
-        <div className="relative min-h-screen">
-          <PsychedelicBackground />
+        <ReactQueryProvider>
+          <div className="relative min-h-screen">
+            <PsychedelicBackground />
 
-          <div className="relative z-10">
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
+            <div className="relative z-10">
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
           </div>
-        </div>
+        </ReactQueryProvider>
       </body>
     </html>
   )
