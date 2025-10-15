@@ -273,13 +273,14 @@ export default function ManualEntryPage() {
                 <select
                   value={measurement.metric}
                   onChange={(e) => updateMeasurement(index, 'metric', e.target.value)}
-                  className="flex-1 rounded-md bg-white/10 px-2 py-1.5 text-xs text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400 cursor-pointer"
+                  className="flex-1 rounded-md bg-gray-900 border border-gray-700 px-2 py-1.5 text-xs text-white focus:bg-gray-800 focus:border-fuchsia-400 focus:outline-none cursor-pointer"
+                  style={{ colorScheme: 'dark' }}
                 >
                   {metrics.map((metric) => (
                     <option 
                       key={metric.key} 
                       value={metric.key}
-                      className="bg-gray-800 text-white"
+                      style={{ backgroundColor: '#1f2937', color: '#ffffff' }}
                     >
                       {metric.display_name}
                     </option>
