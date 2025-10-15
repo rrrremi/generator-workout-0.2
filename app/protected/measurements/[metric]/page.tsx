@@ -4,8 +4,8 @@ import { useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, Calendar, TrendingUp } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, Calendar, TrendingUp, Edit2, Trash2, Save, X } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkline } from '@/components/measurements/Sparkline'
 
 interface Measurement {
@@ -32,10 +32,14 @@ type SortDirection = 'asc' | 'desc'
 export default function MetricDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const metric = params.metric as string
   
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery<MetricDetailResponse>({
     queryKey: ['measurements', 'detail', metric],
@@ -82,6 +86,63 @@ export default function MetricDetailPage() {
     } else {
       setSortField(field)
       setSortDirection('desc')
+    }
+  }
+
+  const startEdit = (measurement: Measurement) => {
+    setEditingId(measurement.id)
+    setEditValue(measurement.value.toString())
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditValue('')
+  }
+
+  const handleUpdate = async (id: string) => {
+    try {
+      const response = await fetch(`/api/measurements/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          value: parseFloat(editValue),
+          unit: data?.measurements.find(m => m.id === id)?.unit
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to update')
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['measurements', 'detail', metric] })
+      queryClient.invalidateQueries({ queryKey: ['measurements', 'summary'] })
+      
+      setEditingId(null)
+      setEditValue('')
+    } catch (error) {
+      console.error('Update error:', error)
+      alert('Failed to update measurement')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this measurement?')) return
+
+    try {
+      setDeleting(id)
+      const response = await fetch(`/api/measurements/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete')
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['measurements', 'detail', metric] })
+      queryClient.invalidateQueries({ queryKey: ['measurements', 'summary'] })
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Failed to delete measurement')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -213,6 +274,7 @@ export default function MetricDetailPage() {
                     </button>
                   </th>
                   <th className="text-left p-3 text-xs font-medium text-white/70">Source</th>
+                  <th className="text-right p-3 text-xs font-medium text-white/70">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,12 +291,28 @@ export default function MetricDetailPage() {
                       })}
                     </td>
                     <td className="p-3">
-                      <span className="text-sm font-semibold text-white">
-                        {measurement.value.toFixed(1)}
-                      </span>
-                      <span className="text-xs text-white/60 ml-1">
-                        {measurement.unit}
-                      </span>
+                      {editingId === measurement.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-20 rounded bg-white/10 px-2 py-1 text-xs text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400"
+                            autoFocus
+                          />
+                          <span className="text-xs text-white/60">{measurement.unit}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-sm font-semibold text-white">
+                            {measurement.value.toFixed(1)}
+                          </span>
+                          <span className="text-xs text-white/60 ml-1">
+                            {measurement.unit}
+                          </span>
+                        </>
+                      )}
                     </td>
                     <td className="p-3 text-xs">
                       {measurement.source === 'ocr' ? (
@@ -243,6 +321,48 @@ export default function MetricDetailPage() {
                         </span>
                       ) : (
                         <span className="text-blue-400">✍️ Manual</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-right">
+                      {editingId === measurement.id ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleUpdate(measurement.id)}
+                            className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                            title="Save"
+                          >
+                            <Save className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="p-1.5 rounded hover:bg-white/10 text-white/60 transition-colors"
+                            title="Cancel"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => startEdit(measurement)}
+                            className="p-1.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(measurement.id)}
+                            disabled={deleting === measurement.id}
+                            className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors disabled:opacity-50"
+                            title="Delete"
+                          >
+                            {deleting === measurement.id ? (
+                              <div className="animate-spin h-3.5 w-3.5 border-2 border-red-400 border-t-transparent rounded-full"></div>
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
