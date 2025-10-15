@@ -71,16 +71,28 @@ export default function UploadMeasurementPage() {
         return
       }
 
-      // Upload to Supabase Storage
-      // Sanitize filename - remove special characters that Supabase doesn't allow
-      const sanitizedName = selectedFile.name
-        .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace special chars with underscore
-        .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-      
-      const fileName = `${user.id}/${Date.now()}-${sanitizedName}`
+      // Server-side validation before upload
+      const validationResponse = await fetch('/api/measurements/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: selectedFile.name,
+          fileSize: selectedFile.size,
+          fileType: selectedFile.type
+        })
+      })
+
+      if (!validationResponse.ok) {
+        const validationError = await validationResponse.json()
+        throw new Error(validationError.error || 'File validation failed')
+      }
+
+      const { fileName: validatedFileName } = await validationResponse.json()
+
+      // Upload to Supabase Storage with validated filename
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('measurement-images')
-        .upload(fileName, selectedFile, {
+        .upload(validatedFileName, selectedFile, {
           cacheControl: '3600',
           upsert: false
         })
@@ -90,7 +102,7 @@ export default function UploadMeasurementPage() {
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('measurement-images')
-        .getPublicUrl(fileName)
+        .getPublicUrl(validatedFileName)
 
       setImageUrl(publicUrl)
 
