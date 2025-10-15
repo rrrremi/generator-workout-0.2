@@ -70,7 +70,8 @@ export async function GET() {
 
     return NextResponse.json({
       metrics,
-      query_time_ms: queryTime
+      // Only include query time in development
+      ...(process.env.NODE_ENV === 'development' && { query_time_ms: queryTime })
     });
 
   } catch (error: any) {
