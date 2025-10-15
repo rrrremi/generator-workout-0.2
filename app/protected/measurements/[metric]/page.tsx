@@ -8,6 +8,7 @@ import { ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, Calendar, TrendingUp, Edi
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkline } from '@/components/measurements/Sparkline'
 import { MEASUREMENTS_QUERY_OPTIONS } from '@/lib/react-query-config'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface Measurement {
   id: string
@@ -30,7 +31,7 @@ interface MetricDetailResponse {
 type SortField = 'date' | 'value'
 type SortDirection = 'asc' | 'desc'
 
-export default function MetricDetailPage() {
+function MetricDetailPageContent() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -373,5 +374,13 @@ export default function MetricDetailPage() {
         </div>
       </motion.div>
     </section>
+  )
+}
+
+export default function MetricDetailPage() {
+  return (
+    <ErrorBoundary>
+      <MetricDetailPageContent />
+    </ErrorBoundary>
   )
 }

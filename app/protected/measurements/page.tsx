@@ -5,8 +5,9 @@ import { motion } from 'framer-motion'
 import { Scale, Upload, Plus } from 'lucide-react'
 import { useMeasurementsSummary } from '@/hooks/useMeasurementsSummary'
 import { MetricCard } from '@/components/measurements/MetricCard'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-export default function MeasurementsPage() {
+function MeasurementsPageContent() {
   const { data, isLoading, error } = useMeasurementsSummary()
 
   if (isLoading) {
@@ -100,6 +101,14 @@ export default function MeasurementsPage() {
         )}
       </motion.div>
     </section>
+  )
+}
+
+export default function MeasurementsPage() {
+  return (
+    <ErrorBoundary>
+      <MeasurementsPageContent />
+    </ErrorBoundary>
   )
 }
     

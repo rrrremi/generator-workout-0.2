@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Sparkline } from './Sparkline';
 import type { MetricSummary } from '@/hooks/useMeasurementsSummary';
+import { InlineErrorBoundary } from '@/components/ErrorBoundary';
 
 interface MetricCardProps {
   metric: MetricSummary;
@@ -8,8 +9,9 @@ interface MetricCardProps {
 
 export function MetricCard({ metric }: MetricCardProps) {
   return (
-    <Link href={`/protected/measurements/${metric.metric}`}>
-      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl hover:bg-white/10 transition-colors cursor-pointer">
+    <InlineErrorBoundary>
+      <Link href={`/protected/measurements/${metric.metric}`}>
+        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl hover:bg-white/10 transition-colors cursor-pointer">
         <div className="flex items-center justify-between gap-4">
         {/* Left: Metric Info */}
         <div className="flex-1 min-w-0">
@@ -44,5 +46,6 @@ export function MetricCard({ metric }: MetricCardProps) {
       </div>
       </div>
     </Link>
+    </InlineErrorBoundary>
   );
 }
