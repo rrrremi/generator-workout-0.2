@@ -21,10 +21,18 @@ interface EditingMetric extends Metric {
   isNew?: boolean
 }
 
+interface DatabaseMetric {
+  metric: string
+  unit: string
+  count: number
+  in_catalog: boolean
+}
+
 export default function AdminMetricsPage() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [filteredMetrics, setFilteredMetrics] = useState<Metric[]>([])
+  const [dbMetrics, setDbMetrics] = useState<DatabaseMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingMetric, setEditingMetric] = useState<EditingMetric | null>(null)
@@ -34,11 +42,19 @@ export default function AdminMetricsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [sortField, setSortField] = useState<keyof Metric>('sort_order')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [keySearch, setKeySearch] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     checkAdminAndFetch()
   }, [])
+
+  useEffect(() => {
+    if (metrics.length > 0) {
+      fetchDatabaseMetrics()
+    }
+  }, [metrics])
 
   useEffect(() => {
     filterAndSortMetrics()
@@ -90,6 +106,43 @@ export default function AdminMetricsPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchDatabaseMetrics = async () => {
+    try {
+      // Get all unique metrics from ALL users' measurements
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('metric, unit')
+
+      if (error) throw error
+
+      // Group by metric and count occurrences
+      const metricMap = new Map<string, { unit: string; count: number }>()
+      data?.forEach(m => {
+        const existing = metricMap.get(m.metric)
+        if (existing) {
+          existing.count++
+        } else {
+          metricMap.set(m.metric, { unit: m.unit, count: 1 })
+        }
+      })
+
+      // Convert to array and check if in catalog
+      const dbMetricsList: DatabaseMetric[] = Array.from(metricMap.entries())
+        .map(([metric, info]) => ({
+          metric,
+          unit: info.unit,
+          count: info.count,
+          in_catalog: metrics.some(m => m.key === metric)
+        }))
+        .filter(m => !m.in_catalog) // Only show metrics NOT in catalog
+        .sort((a, b) => b.count - a.count) // Sort by usage count
+
+      setDbMetrics(dbMetricsList)
+    } catch (err: any) {
+      console.error('Error fetching database metrics:', err)
     }
   }
 
@@ -169,6 +222,35 @@ export default function AdminMetricsPage() {
       sort_order: metrics.length + 1,
       isNew: true
     })
+    setKeySearch('')
+    setShowSuggestions(false)
+  }
+
+  const selectDatabaseMetric = (dbMetric: DatabaseMetric) => {
+    if (!editingMetric) return
+    
+    // Auto-fill fields from database metric
+    const displayName = dbMetric.metric
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+    
+    setEditingMetric({
+      ...editingMetric,
+      key: dbMetric.metric,
+      display_name: displayName,
+      unit: dbMetric.unit
+    })
+    setKeySearch(dbMetric.metric)
+    setShowSuggestions(false)
+  }
+
+  const getFilteredDbMetrics = () => {
+    if (!keySearch) return dbMetrics.slice(0, 10)
+    
+    return dbMetrics
+      .filter(m => m.metric.toLowerCase().includes(keySearch.toLowerCase()))
+      .slice(0, 10)
   }
 
   const handleEdit = (metric: Metric) => {
@@ -443,19 +525,55 @@ export default function AdminMetricsPage() {
             </h3>
 
             <div className="space-y-4">
-              {/* Key */}
-              <div>
+              {/* Key with Autocomplete */}
+              <div className="relative">
                 <label className="block text-xs font-medium text-white/70 mb-1">
                   Key (unique identifier) *
+                  {dbMetrics.length > 0 && editingMetric.isNew && (
+                    <span className="ml-2 text-amber-400">({dbMetrics.length} metrics found in database)</span>
+                  )}
                 </label>
                 <input
                   type="text"
-                  value={editingMetric.key}
-                  onChange={(e) => setEditingMetric({ ...editingMetric, key: e.target.value })}
+                  value={editingMetric.isNew ? keySearch : editingMetric.key}
+                  onChange={(e) => {
+                    if (editingMetric.isNew) {
+                      setKeySearch(e.target.value)
+                      setEditingMetric({ ...editingMetric, key: e.target.value })
+                      setShowSuggestions(true)
+                    }
+                  }}
+                  onFocus={() => editingMetric.isNew && setShowSuggestions(true)}
                   disabled={!editingMetric.isNew}
-                  placeholder="e.g., body_fat_percent"
+                  placeholder="e.g., body_fat_percent or type to search database..."
                   className="w-full px-3 py-2 rounded-lg bg-white/10 text-sm text-white placeholder-white/40 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400/40 disabled:opacity-50 font-mono"
                 />
+                
+                {/* Database Metrics Suggestions */}
+                {editingMetric.isNew && showSuggestions && getFilteredDbMetrics().length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto rounded-lg bg-gray-800 border border-gray-600 shadow-xl">
+                    <div className="px-3 py-2 text-xs text-amber-400 border-b border-white/10 bg-amber-500/10">
+                      📊 Metrics from database (not in catalog)
+                    </div>
+                    {getFilteredDbMetrics().map((dbMetric) => (
+                      <button
+                        key={dbMetric.metric}
+                        onClick={() => selectDatabaseMetric(dbMetric)}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-500/20 transition-colors border-b border-white/5 last:border-b-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="text-white font-medium font-mono">{dbMetric.metric}</div>
+                            <div className="text-white/60 text-[10px]">{dbMetric.unit}</div>
+                          </div>
+                          <div className="text-amber-400 text-[10px]">
+                            {dbMetric.count}x used
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Display Name */}
