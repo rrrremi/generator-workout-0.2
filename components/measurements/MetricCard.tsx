@@ -32,7 +32,11 @@ export function MetricCard({ metric }: MetricCardProps) {
         {/* Right: Sparkline */}
         {metric.sparkline_points.length > 0 && (
           <div className="w-32 h-16 flex-shrink-0">
-            <Sparkline data={metric.sparkline_points} color="#fff" />
+            <Sparkline 
+              data={metric.sparkline_points} 
+              color="#fff" 
+              unit={metric.unit}
+            />
           </div>
         )}
       </div>

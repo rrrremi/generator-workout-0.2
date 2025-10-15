@@ -32,7 +32,7 @@ BEGIN
     ORDER BY m.metric, m.measured_at DESC
   ),
   historical_data AS (
-    -- Get last 30 data points per metric (90 day window)
+    -- Get last 30 data points per metric (all time)
     SELECT 
       sub.metric,
       jsonb_agg(
@@ -50,7 +50,6 @@ BEGIN
         ROW_NUMBER() OVER (PARTITION BY m2.metric ORDER BY m2.measured_at DESC) as rn
       FROM measurements m2
       WHERE m2.user_id = p_user_id
-        AND m2.measured_at > NOW() - INTERVAL '90 days'
     ) sub
     WHERE sub.rn <= 30  -- Limit to last 30 points per metric
     GROUP BY sub.metric
