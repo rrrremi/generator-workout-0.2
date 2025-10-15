@@ -48,8 +48,11 @@ export default function ManualEntryPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    fetchMetrics()
-    fetchDatabaseMetrics()
+    const loadData = async () => {
+      await fetchMetrics()
+      await fetchDatabaseMetrics()
+    }
+    loadData()
   }, [])
 
   useEffect(() => {
@@ -93,6 +96,8 @@ export default function ManualEntryPage() {
 
       if (error) throw error
 
+      console.log('Raw measurements data:', data)
+
       // Group by metric and count occurrences
       const metricMap = new Map<string, { unit: string; count: number }>()
       data?.forEach(m => {
@@ -111,6 +116,9 @@ export default function ManualEntryPage() {
         count: info.count,
         in_catalog: metrics.some(m => m.key === metric)
       }))
+
+      console.log('Database metrics found:', dbMetricsList)
+      console.log('Catalog metrics:', metrics.map(m => m.key))
 
       setDbMetrics(dbMetricsList)
     } catch (err: any) {
@@ -239,6 +247,9 @@ export default function ManualEntryPage() {
     const searchTerm = searchTerms[index]?.toLowerCase() || ''
     if (!searchTerm) return []
 
+    console.log('Filtering with search term:', searchTerm)
+    console.log('Available dbMetrics:', dbMetrics)
+
     const suggestions: Array<{ key: string; display: string; unit: string; source: 'catalog' | 'database'; count?: number }> = []
 
     // Add catalog metrics
@@ -255,6 +266,7 @@ export default function ManualEntryPage() {
 
     // Add database metrics not in catalog
     dbMetrics.forEach(m => {
+      console.log(`Checking ${m.metric}: in_catalog=${m.in_catalog}, matches=${m.metric.toLowerCase().includes(searchTerm)}`)
       if (!m.in_catalog && (m.metric.toLowerCase().includes(searchTerm))) {
         suggestions.push({
           key: m.metric,
@@ -266,6 +278,7 @@ export default function ManualEntryPage() {
       }
     })
 
+    console.log('Final suggestions:', suggestions)
     return suggestions.slice(0, 10) // Limit to 10 suggestions
   }
 
