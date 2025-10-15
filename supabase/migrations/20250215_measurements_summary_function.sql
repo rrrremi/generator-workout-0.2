@@ -34,26 +34,26 @@ BEGIN
   historical_data AS (
     -- Get last 30 data points per metric (90 day window)
     SELECT 
-      m.metric,
+      sub.metric,
       jsonb_agg(
         jsonb_build_object(
-          'value', m.value,
-          'date', m.measured_at
-        ) ORDER BY m.measured_at ASC
+          'value', sub.value,
+          'date', sub.measured_at
+        ) ORDER BY sub.measured_at ASC
       ) as points,
       COUNT(*)::INT as count
     FROM (
       SELECT 
-        metric,
-        value,
-        measured_at,
-        ROW_NUMBER() OVER (PARTITION BY metric ORDER BY measured_at DESC) as rn
-      FROM measurements
-      WHERE user_id = p_user_id
-        AND measured_at > NOW() - INTERVAL '90 days'
-    ) m
-    WHERE m.rn <= 30  -- Limit to last 30 points per metric
-    GROUP BY m.metric
+        m2.metric,
+        m2.value,
+        m2.measured_at,
+        ROW_NUMBER() OVER (PARTITION BY m2.metric ORDER BY m2.measured_at DESC) as rn
+      FROM measurements m2
+      WHERE m2.user_id = p_user_id
+        AND m2.measured_at > NOW() - INTERVAL '90 days'
+    ) sub
+    WHERE sub.rn <= 30  -- Limit to last 30 points per metric
+    GROUP BY sub.metric
   )
   SELECT 
     l.metric,
