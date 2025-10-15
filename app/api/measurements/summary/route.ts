@@ -39,7 +39,7 @@ export async function GET() {
     const cachedData = await cacheHelper.getOrSet(
       cacheKey,
       async () => {
-        // Single optimized query using existing indexes
+        // Single optimized query with catalog JOIN (no N+1!)
         const { data, error } = await supabase.rpc('get_measurements_summary', {
           p_user_id: user.id
         });
@@ -49,19 +49,10 @@ export async function GET() {
           throw error;
         }
 
-        // Get metrics catalog for display names
-        const { data: catalog } = await supabase
-          .from('metrics_catalog')
-          .select('key, display_name');
-
-        const catalogMap = new Map(
-          catalog?.map(c => [c.key, c.display_name]) || []
-        );
-
-        // Transform data
+        // Transform data - display_name now comes from RPC function
         const metrics: MetricSummary[] = (data || []).map((row: any) => ({
           metric: row.metric,
-          display_name: catalogMap.get(row.metric) || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          display_name: row.display_name || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
           latest_value: row.latest_value,
           unit: row.unit,
           latest_date: row.latest_date,
