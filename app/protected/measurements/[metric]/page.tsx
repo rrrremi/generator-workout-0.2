@@ -40,7 +40,7 @@ export default function MetricDetailPage() {
   const { data, isLoading, error } = useQuery<MetricDetailResponse>({
     queryKey: ['measurements', 'detail', metric],
     queryFn: async () => {
-      const response = await fetch(`/api/measurements/${metric}`)
+      const response = await fetch(`/api/measurements/metric/${metric}`)
       if (!response.ok) throw new Error('Failed to fetch metric detail')
       return response.json()
     },
