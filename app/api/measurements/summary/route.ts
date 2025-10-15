@@ -55,7 +55,7 @@ export async function GET() {
     // Transform data
     const metrics: MetricSummary[] = (data || []).map((row: any) => ({
       metric: row.metric,
-      display_name: catalogMap.get(row.metric) || row.metric.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      display_name: catalogMap.get(row.metric) || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
       latest_value: row.latest_value,
       unit: row.unit,
       latest_date: row.latest_date,
