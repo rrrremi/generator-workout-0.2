@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronLeft, Save, Plus, Trash2, CheckCircle, Search } from 'lucide-react'
+import { ChevronLeft, Save, Plus, Trash2, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface MetricCatalog {
@@ -299,36 +299,37 @@ export default function ManualEntryPage() {
               >
                 {/* Metric Selector - Searchable */}
                 <div className="flex-1 relative metric-dropdown">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchTerms[index] || getMetricDisplayName(measurement.metric)}
-                      onChange={(e) => {
-                        setSearchTerms({ ...searchTerms, [index]: e.target.value })
-                        setOpenDropdown(index)
-                      }}
-                      onFocus={() => setOpenDropdown(index)}
-                      placeholder="Search metric..."
-                      className="w-full rounded-md bg-white/10 backdrop-blur-xl px-2 py-1.5 pr-6 text-xs text-white placeholder-white/40 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400/40"
-                    />
-                    <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
-                  </div>
+                  <input
+                    type="text"
+                    value={searchTerms[index] !== undefined ? searchTerms[index] : getMetricDisplayName(measurement.metric)}
+                    onChange={(e) => {
+                      setSearchTerms({ ...searchTerms, [index]: e.target.value })
+                      setOpenDropdown(index)
+                    }}
+                    onFocus={() => {
+                      setSearchTerms({ ...searchTerms, [index]: '' })
+                      setOpenDropdown(index)
+                    }}
+                    placeholder="Type to search..."
+                    className="w-full rounded-md bg-white/10 px-2 py-1.5 text-xs text-white placeholder-white/50 focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-fuchsia-400"
+                  />
                   
                   {/* Dropdown */}
                   {openDropdown === index && (
-                    <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg bg-gray-900/95 backdrop-blur-xl border border-white/20 shadow-2xl">
-                      {getFilteredMetrics(index).map((metric) => (
-                        <button
-                          key={metric.key}
-                          onClick={() => selectMetric(index, metric.key)}
-                          className="w-full text-left px-3 py-2 text-xs text-white hover:bg-fuchsia-500/20 transition-colors border-b border-white/5 last:border-b-0"
-                        >
-                          <div className="font-semibold">{metric.display_name}</div>
-                          <div className="text-white/60 text-[10px] mt-0.5">{metric.unit}</div>
-                        </button>
-                      ))}
-                      {getFilteredMetrics(index).length === 0 && (
-                        <div className="px-3 py-3 text-xs text-white/50 text-center">No metrics found</div>
+                    <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md bg-gray-800 border border-gray-600 shadow-xl">
+                      {getFilteredMetrics(index).length > 0 ? (
+                        getFilteredMetrics(index).map((metric) => (
+                          <button
+                            key={metric.key}
+                            onClick={() => selectMetric(index, metric.key)}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-fuchsia-500/30 transition-colors"
+                          >
+                            <div className="text-white font-medium">{metric.display_name}</div>
+                            <div className="text-white/60 text-[10px]">{metric.unit}</div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-white/60">No results</div>
                       )}
                     </div>
                   )}
