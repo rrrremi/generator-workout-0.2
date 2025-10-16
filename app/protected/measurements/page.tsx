@@ -15,7 +15,7 @@ function MeasurementsPageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [sortField, setSortField] = useState<'name' | 'value' | 'date'>('name')
+  const [sortField, setSortField] = useState<'name' | 'date'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   if (isLoading) {
@@ -89,8 +89,6 @@ function MeasurementsPageContent() {
       
       if (sortField === 'name') {
         comparison = a.display_name.localeCompare(b.display_name)
-      } else if (sortField === 'value') {
-        comparison = a.latest_value - b.latest_value
       } else if (sortField === 'date') {
         comparison = new Date(a.latest_date).getTime() - new Date(b.latest_date).getTime()
       }
@@ -109,7 +107,7 @@ function MeasurementsPageContent() {
     )
   }
   
-  const toggleSort = (field: 'name' | 'value' | 'date') => {
+  const toggleSort = (field: 'name' | 'date') => {
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
     } else {
@@ -125,7 +123,7 @@ function MeasurementsPageContent() {
   
   const hasActiveFilters = searchTerm || selectedCategories.length > 0
   
-  const SortIcon = ({ field }: { field: 'name' | 'value' | 'date' }) => {
+  const SortIcon = ({ field }: { field: 'name' | 'date' }) => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-3 w-3 text-white/30" />
     }
@@ -233,13 +231,6 @@ function MeasurementsPageContent() {
                     >
                       Name
                       <SortIcon field="name" />
-                    </button>
-                    <button
-                      onClick={() => toggleSort('value')}
-                      className="flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs font-light text-white/80 hover:bg-white/20 transition-colors"
-                    >
-                      Value
-                      <SortIcon field="value" />
                     </button>
                     <button
                       onClick={() => toggleSort('date')}
