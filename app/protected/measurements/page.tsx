@@ -25,7 +25,11 @@ function MeasurementsPageContent() {
   const availableCategories = useMemo(() => {
     if (!data?.metrics) return []
     
-    const categorySet = new Set(data.metrics.map(m => m.category))
+    // Filter out metrics without category field (migration not run yet)
+    const metricsWithCategories = data.metrics.filter(m => m.category)
+    if (metricsWithCategories.length === 0) return []
+    
+    const categorySet = new Set(metricsWithCategories.map(m => m.category))
     const categoryLabels: Record<string, string> = {
       composition: 'Body Composition',
       segmental_lean: 'Segmental Lean Mass',
@@ -50,6 +54,7 @@ function MeasurementsPageContent() {
     }
     
     return Array.from(categorySet)
+      .filter(cat => cat) // Remove undefined/null
       .map(cat => ({
         id: cat,
         label: categoryLabels[cat] || cat
@@ -69,7 +74,7 @@ function MeasurementsPageContent() {
       
       // Filter by category (use actual category from catalog)
       const matchesCategory = selectedCategories.length === 0 || 
-        selectedCategories.includes(metric.category)
+        (metric.category && selectedCategories.includes(metric.category))
       
       // Filter by date
       let matchesDate = true
@@ -342,21 +347,27 @@ function MeasurementsPageContent() {
                     {/* Category Filter */}
                     <div>
                       <p className="text-xs font-medium text-white/70 mb-2">Categories</p>
-                      <div className="flex flex-wrap gap-2">
-                        {availableCategories.map(category => (
-                          <button
-                            key={category.id}
-                            onClick={() => toggleCategory(category.id)}
-                            className={`px-2 py-1 rounded-md text-xs transition-colors ${
-                              selectedCategories.includes(category.id)
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                            }`}
-                          >
-                            {category.label}
-                          </button>
-                        ))}
-                      </div>
+                      {availableCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {availableCategories.map(category => (
+                            <button
+                              key={category.id}
+                              onClick={() => toggleCategory(category.id)}
+                              className={`px-2 py-1 rounded-md text-xs transition-colors ${
+                                selectedCategories.includes(category.id)
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                              }`}
+                            >
+                              {category.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-white/40 italic">
+                          Run database migration to enable category filtering
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
