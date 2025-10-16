@@ -15,6 +15,9 @@ function MeasurementsPageContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all')
+  const [customDateFrom, setCustomDateFrom] = useState('')
+  const [customDateTo, setCustomDateTo] = useState('')
   const [sortField, setSortField] = useState<'name' | 'date'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   
@@ -68,7 +71,34 @@ function MeasurementsPageContent() {
       const matchesCategory = selectedCategories.length === 0 || 
         selectedCategories.includes(metric.category)
       
-      return matchesSearch && matchesCategory
+      // Filter by date
+      let matchesDate = true
+      if (dateFilter !== 'all') {
+        const metricDate = new Date(metric.latest_date)
+        const now = new Date()
+        
+        if (dateFilter === 'today') {
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+          matchesDate = metricDate >= today
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          matchesDate = metricDate >= weekAgo
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+          matchesDate = metricDate >= monthAgo
+        } else if (dateFilter === 'custom' && (customDateFrom || customDateTo)) {
+          if (customDateFrom) {
+            matchesDate = matchesDate && metricDate >= new Date(customDateFrom)
+          }
+          if (customDateTo) {
+            const toDate = new Date(customDateTo)
+            toDate.setHours(23, 59, 59, 999)
+            matchesDate = matchesDate && metricDate <= toDate
+          }
+        }
+      }
+      
+      return matchesSearch && matchesCategory && matchesDate
     })
     
     // Sort metrics
@@ -85,11 +115,11 @@ function MeasurementsPageContent() {
     })
     
     return filtered
-  }, [data?.metrics, searchTerm, selectedCategories, sortField, sortDirection])
+  }, [data?.metrics, searchTerm, selectedCategories, dateFilter, customDateFrom, customDateTo, sortField, sortDirection])
   
   // Computed values
   const hasMetrics = data?.metrics && data.metrics.length > 0
-  const hasActiveFilters = searchTerm || selectedCategories.length > 0
+  const hasActiveFilters = searchTerm || selectedCategories.length > 0 || dateFilter !== 'all'
   
   // Early returns AFTER all hooks
   if (isLoading) {
@@ -130,6 +160,9 @@ function MeasurementsPageContent() {
   const clearFilters = () => {
     setSearchTerm('')
     setSelectedCategories([])
+    setDateFilter('all')
+    setCustomDateFrom('')
+    setCustomDateTo('')
   }
   
   const SortIcon = ({ field }: { field: 'name' | 'date' }) => {
@@ -255,22 +288,75 @@ function MeasurementsPageContent() {
               {/* Filter Panel */}
               {showFilters && (
                 <div className="p-3 border-t border-white/10 bg-white/5">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-white/70 mb-2">Categories</p>
-                    <div className="flex flex-wrap gap-2">
-                      {availableCategories.map(category => (
-                        <button
-                          key={category.id}
-                          onClick={() => toggleCategory(category.id)}
-                          className={`px-2 py-1 rounded-md text-xs transition-colors ${
-                            selectedCategories.includes(category.id)
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                          }`}
-                        >
-                          {category.label}
-                        </button>
-                      ))}
+                  <div className="space-y-4">
+                    {/* Date Filter */}
+                    <div>
+                      <p className="text-xs font-medium text-white/70 mb-2">Date Added</p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {[
+                          { id: 'all', label: 'All Time' },
+                          { id: 'today', label: 'Today' },
+                          { id: 'week', label: 'Last 7 Days' },
+                          { id: 'month', label: 'Last 30 Days' },
+                          { id: 'custom', label: 'Custom Range' }
+                        ].map(option => (
+                          <button
+                            key={option.id}
+                            onClick={() => setDateFilter(option.id as any)}
+                            className={`px-2 py-1 rounded-md text-xs transition-colors ${
+                              dateFilter === option.id
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {/* Custom Date Range Inputs */}
+                      {dateFilter === 'custom' && (
+                        <div className="flex gap-2 mt-2">
+                          <div className="flex-1">
+                            <label className="text-[10px] text-white/50 mb-1 block">From</label>
+                            <input
+                              type="date"
+                              value={customDateFrom}
+                              onChange={(e) => setCustomDateFrom(e.target.value)}
+                              className="w-full rounded bg-white/10 px-2 py-1 text-xs text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] text-white/50 mb-1 block">To</label>
+                            <input
+                              type="date"
+                              value={customDateTo}
+                              onChange={(e) => setCustomDateTo(e.target.value)}
+                              className="w-full rounded bg-white/10 px-2 py-1 text-xs text-white focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Category Filter */}
+                    <div>
+                      <p className="text-xs font-medium text-white/70 mb-2">Categories</p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableCategories.map(category => (
+                          <button
+                            key={category.id}
+                            onClick={() => toggleCategory(category.id)}
+                            className={`px-2 py-1 rounded-md text-xs transition-colors ${
+                              selectedCategories.includes(category.id)
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                            }`}
+                          >
+                            {category.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
