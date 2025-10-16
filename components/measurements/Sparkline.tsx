@@ -1,4 +1,4 @@
-import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis, CartesianGrid } from 'recharts';
 
 interface SparklineProps {
   data: Array<{ value: number; date: string }>;
@@ -68,6 +68,11 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
     return (
       <ResponsiveContainer width="100%" height={60}>
         <LineChart data={[data[0], data[0]]}>
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            stroke="rgba(255, 255, 255, 0.06)" 
+            vertical={false}
+          />
           <YAxis domain={[yMin, yMax]} hide />
           <Tooltip content={<CustomTooltip unit={unit} />} />
           <Line 
@@ -87,6 +92,11 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
   return (
     <ResponsiveContainer width="100%" height={60}>
       <LineChart data={data}>
+        <CartesianGrid 
+          strokeDasharray="3 3" 
+          stroke="rgba(255, 255, 255, 0.06)" 
+          vertical={false}
+        />
         <YAxis domain={[yMin, yMax]} hide />
         <Tooltip content={<CustomTooltip unit={unit} />} />
         <Line 
