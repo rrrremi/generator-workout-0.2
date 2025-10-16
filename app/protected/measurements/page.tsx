@@ -39,34 +39,13 @@ function MeasurementsPageContent() {
     if (metricsWithCategories.length === 0) return []
     
     const categorySet = new Set(metricsWithCategories.map(m => m.category))
-    const categoryLabels: Record<string, string> = {
-      composition: 'Body Composition',
-      segmental_lean: 'Segmental Lean Mass',
-      segmental_fat: 'Segmental Fat Mass',
-      water: 'Water Balance',
-      obesity: 'Obesity Metrics',
-      control: 'Control Targets',
-      energy: 'Energy & Metabolism',
-      targets: 'Target Values',
-      performance: 'Performance Scores',
-      segmental_analysis: 'Segmental Analysis',
-      impedance: 'Impedance',
-      blood_lipids: 'Blood Lipids',
-      blood_sugar: 'Blood Sugar',
-      blood_cells: 'Blood Cells',
-      vitals: 'Vital Signs',
-      liver: 'Liver Function',
-      kidney: 'Kidney Function',
-      thyroid: 'Thyroid',
-      vitamins: 'Vitamins & Minerals',
-      other: 'Other'
-    }
     
+    // Use categories as-is from database, just format for display
     return Array.from(categorySet)
       .filter(cat => cat) // Remove undefined/null
       .map(cat => ({
         id: cat,
-        label: categoryLabels[cat] || cat
+        label: cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
       }))
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [data?.metrics])
