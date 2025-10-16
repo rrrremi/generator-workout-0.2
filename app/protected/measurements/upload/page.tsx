@@ -72,19 +72,26 @@ export default function UploadMeasurementPage() {
       }
 
       // Server-side validation before upload
+      const validationPayload = {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type
+      }
+      console.log('Sending validation payload:', validationPayload)
+      
       const validationResponse = await fetch('/api/measurements/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: selectedFile.name,
-          fileSize: selectedFile.size,
-          fileType: selectedFile.type
-        })
+        body: JSON.stringify(validationPayload)
       })
 
       if (!validationResponse.ok) {
         const validationError = await validationResponse.json()
-        throw new Error(validationError.error || 'File validation failed')
+        console.error('Validation error details:', validationError)
+        const errorMessage = validationError.details 
+          ? `${validationError.error}: ${validationError.details.join(', ')}`
+          : validationError.error || 'File validation failed'
+        throw new Error(errorMessage)
       }
 
       const { fileName: validatedFileName } = await validationResponse.json()
