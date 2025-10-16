@@ -4,6 +4,9 @@
 -- Update get_measurements_summary to include category from metrics_catalog
 -- ============================================================================
 
+-- Drop the existing function first (required when changing return type)
+DROP FUNCTION IF EXISTS get_measurements_summary(UUID);
+
 CREATE OR REPLACE FUNCTION get_measurements_summary(p_user_id UUID)
 RETURNS TABLE (
   metric TEXT,
