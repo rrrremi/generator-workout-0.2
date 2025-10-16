@@ -56,16 +56,23 @@ export function useMeasurementMutations(metric: string) {
       });
       
       // Make API call in background
+      const payload = {
+        value: newValue,
+        unit: measurement.unit,
+      };
+      console.log('Updating measurement:', { id, payload });
+      
       const response = await fetch(`/api/measurements/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: newValue,
-          unit: measurement.unit,
-        }),
+        body: JSON.stringify(payload),
       });
       
-      if (!response.ok) throw new Error('Failed to update');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Update failed:', errorData);
+        throw new Error(errorData.error || 'Failed to update');
+      }
       
       // Refetch to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['measurements', 'detail', metric] });

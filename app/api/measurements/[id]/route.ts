@@ -14,7 +14,7 @@ const updateMeasurementSchema = z.object({
   unit: z.string()
     .min(1, 'Unit is required')
     .max(20, 'Unit too long')
-    .regex(/^[a-zA-Z0-9%/\s-]+$/, 'Invalid unit format'),
+    .regex(/^[a-zA-Z0-9%/\s°²³µ·-]+$/, 'Invalid unit format'),
   measured_at: z.string().datetime().optional(),
   notes: z.string().max(500, 'Notes too long').optional().nullable()
 });
@@ -106,16 +106,21 @@ export async function PATCH(
       );
     }
 
-    // Update measurement
+    // Update measurement (measured_at only if explicitly provided, updated_at handled by trigger)
+    const updateData: any = {
+      value,
+      unit,
+      notes: notes || null,
+    };
+    
+    // Only update measured_at if explicitly provided
+    if (measured_at) {
+      updateData.measured_at = measured_at;
+    }
+    
     const { data, error } = await supabase
       .from('measurements')
-      .update({
-        value,
-        unit,
-        measured_at: measured_at || new Date().toISOString(),
-        notes: notes || null,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', params.id)
       .eq('user_id', user.id)
       .select()
