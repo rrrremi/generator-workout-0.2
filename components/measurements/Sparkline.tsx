@@ -42,9 +42,9 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
   
-  // Add 15% padding above and below for visual breathing room
-  // This makes small changes much more visible
-  const padding = range * 0.15;
+  // Add 40% padding above and below for balanced visualization
+  // This makes changes visible without being overly dramatic
+  const padding = range * 0.4;
   const yMin = minValue - padding;
   const yMax = maxValue + padding;
 
