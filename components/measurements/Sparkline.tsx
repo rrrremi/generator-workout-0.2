@@ -1,4 +1,4 @@
-import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 interface SparklineProps {
   data: Array<{ value: number; date: string }>;
@@ -36,11 +36,24 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
     return null;
   }
 
+  // Calculate dynamic Y-axis domain for better sensitivity
+  const values = data.map(d => d.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = maxValue - minValue;
+  
+  // Add 15% padding above and below for visual breathing room
+  // This makes small changes much more visible
+  const padding = range * 0.15;
+  const yMin = minValue - padding;
+  const yMax = maxValue + padding;
+
   // Single data point - show horizontal line with dot
   if (data.length === 1) {
     return (
       <ResponsiveContainer width="100%" height={60}>
         <LineChart data={[data[0], data[0]]}>
+          <YAxis domain={[yMin, yMax]} hide />
           <Tooltip content={<CustomTooltip unit={unit} />} />
           <Line 
             type="monotone"
@@ -55,10 +68,11 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
     );
   }
 
-  // Multiple data points - show sparkline
+  // Multiple data points - show sparkline with dynamic domain
   return (
     <ResponsiveContainer width="100%" height={60}>
       <LineChart data={data}>
+        <YAxis domain={[yMin, yMax]} hide />
         <Tooltip content={<CustomTooltip unit={unit} />} />
         <Line 
           type="monotone"
