@@ -32,6 +32,25 @@ function MeasurementsPageContent() {
 
   return (
     <section className="mx-auto w-full max-w-3xl px-2 pb-10">
+      {/* Action Buttons */}
+      <div className="mb-2 flex items-center justify-between relative z-10">
+        <div></div>
+        <div className="flex items-center gap-1.5">
+          <Link href="/protected/measurements/upload">
+            <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+              <Upload className="h-3.5 w-3.5" />
+              Upload
+            </button>
+          </Link>
+          <Link href="/protected/measurements/manual">
+            <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+              Manual
+            </button>
+          </Link>
+        </div>
+      </div>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -39,7 +58,7 @@ function MeasurementsPageContent() {
         className="space-y-3"
       >
         {/* Title */}
-        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-3 backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-3 backdrop-blur-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Scale className="h-5 w-5 text-white/70" />
@@ -51,25 +70,9 @@ function MeasurementsPageContent() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/protected/measurements/upload">
-            <button className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-3 text-sm font-medium text-emerald-300 hover:bg-emerald-500/30 transition-colors">
-              <Upload className="h-4 w-4" />
-              Upload Image
-            </button>
-          </Link>
-          <Link href="/protected/measurements/manual">
-            <button className="w-full flex items-center justify-center gap-2 rounded-lg bg-fuchsia-500/20 px-4 py-3 text-sm font-medium text-fuchsia-300 hover:bg-fuchsia-500/30 transition-colors">
-              <Plus className="h-4 w-4" />
-              Manual Entry
-            </button>
-          </Link>
-        </div>
-
         {/* Empty State */}
         {!hasMetrics && (
-          <div className="rounded-lg border border-white/10 bg-white/5 p-8 text-center backdrop-blur-2xl">
+          <div className="rounded-lg border border-transparent bg-white/5 p-8 text-center backdrop-blur-2xl">
             <Scale className="h-12 w-12 mx-auto text-white/30 mb-3" />
             <h3 className="text-lg font-medium text-white mb-2">No measurements yet</h3>
             <p className="text-sm text-white/60 mb-4">

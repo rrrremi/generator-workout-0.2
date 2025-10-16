@@ -107,12 +107,12 @@ function MetricDetailPageContent() {
         className="space-y-3"
       >
         {/* Header */}
-        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-3 backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-3 backdrop-blur-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Link href="/protected/measurements">
-                <button className="p-1 hover:bg-white/10 rounded transition-colors">
-                  <ChevronLeft className="h-5 w-5" />
+                <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-2 py-1 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
               </Link>
               <div>
@@ -124,7 +124,7 @@ function MetricDetailPageContent() {
         </div>
 
         {/* Sparkline Card */}
-        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-4 backdrop-blur-2xl">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="h-4 w-4 text-white/60" />
             <h2 className="text-sm font-medium text-white/90">Trend</h2>
@@ -160,7 +160,7 @@ function MetricDetailPageContent() {
         </div>
 
         {/* Measurements List */}
-        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 backdrop-blur-2xl">
+        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 backdrop-blur-2xl">
           <div className="p-3 border-b border-white/10">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-white/60" />

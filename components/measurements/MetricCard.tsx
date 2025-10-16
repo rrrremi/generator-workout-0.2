@@ -11,7 +11,7 @@ export function MetricCard({ metric }: MetricCardProps) {
   return (
     <InlineErrorBoundary>
       <Link href={`/protected/measurements/${metric.metric}`}>
-        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-white/5 p-3 backdrop-blur-2xl hover:bg-white/10 transition-colors cursor-pointer">
+        <div className="relative overflow-hidden rounded-lg border border-transparent bg-white/5 p-3 backdrop-blur-2xl hover:bg-white/10 transition-colors cursor-pointer">
           <div className="flex items-center justify-between gap-3">
             {/* Left: Metric Info */}
             <div className="flex-1 min-w-0">
