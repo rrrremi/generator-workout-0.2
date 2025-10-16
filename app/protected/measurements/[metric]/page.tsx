@@ -1,58 +1,33 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ArrowUpDown, ArrowUp, ArrowDown, Calendar, TrendingUp, Edit2, Trash2, Save, X } from 'lucide-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkline } from '@/components/measurements/Sparkline'
-import { MEASUREMENTS_QUERY_OPTIONS } from '@/lib/react-query-config'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import type { MetricDetailResponse, MeasurementPublic, SortField, SortDirection } from '@/types/measurements'
-import { toast } from 'sonner'
+import { useMeasurementDetail } from '@/hooks/useMeasurementDetail'
+import { useMeasurementSort } from '@/hooks/useMeasurementSort'
+import { useMeasurementMutations } from '@/hooks/useMeasurementMutations'
+import type { MeasurementPublic, SortField } from '@/types/measurements'
 
 function MetricDetailPageContent() {
   const params = useParams()
-  const router = useRouter()
-  const queryClient = useQueryClient()
   const metric = params.metric as string
   
-  const [sortField, setSortField] = useState<SortField>('date')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  // UI state
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<string>('')
-  const [deleting, setDeleting] = useState<string | null>(null)
 
-  const { data, isLoading, error } = useQuery<MetricDetailResponse>({
-    queryKey: ['measurements', 'detail', metric],
-    queryFn: async () => {
-      const response = await fetch(`/api/measurements/metric/${metric}`)
-      if (!response.ok) throw new Error('Failed to fetch metric detail')
-      return response.json()
-    },
-    ...MEASUREMENTS_QUERY_OPTIONS,
-  })
-
-  // Sort measurements
-  const sortedMeasurements = useMemo(() => {
-    if (!data?.measurements) return []
-    
-    const sorted = [...data.measurements]
-    sorted.sort((a, b) => {
-      let comparison = 0
-      
-      if (sortField === 'date') {
-        comparison = new Date(a.measured_at).getTime() - new Date(b.measured_at).getTime()
-      } else {
-        comparison = a.value - b.value
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-    
-    return sorted
-  }, [data?.measurements, sortField, sortDirection])
+  // Data fetching
+  const { data, isLoading, error } = useMeasurementDetail(metric)
+  
+  // Sorting
+  const { sortedMeasurements, sortField, sortDirection, toggleSort } = useMeasurementSort(data?.measurements)
+  
+  // Mutations
+  const { updateMeasurement, deleteMeasurement, deleting } = useMeasurementMutations(metric)
 
   // Prepare sparkline data
   const sparklineData = useMemo(() => {
@@ -61,15 +36,6 @@ function MetricDetailPageContent() {
       .map(m => ({ value: m.value, date: m.measured_at }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }, [data?.measurements])
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('desc')
-    }
-  }
 
   const startEdit = (measurement: MeasurementPublic) => {
     setEditingId(measurement.id)
@@ -83,152 +49,18 @@ function MetricDetailPageContent() {
 
   const handleUpdate = async (id: string) => {
     const newValue = parseFloat(editValue)
-    const measurement = data?.measurements.find(m => m.id === id)
+    if (isNaN(newValue)) return
     
-    if (!measurement) return
-
-    // Store previous data for rollback
-    const previousDetailData = queryClient.getQueryData<MetricDetailResponse>(['measurements', 'detail', metric])
-    const previousSummaryData = queryClient.getQueryData(['measurements', 'summary'])
-
-    try {
-      // Optimistic update - update UI immediately
-      queryClient.setQueryData<MetricDetailResponse>(['measurements', 'detail', metric], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          measurements: old.measurements.map(m =>
-            m.id === id ? { ...m, value: newValue } : m
-          )
-        }
-      })
-
-      // Update summary cache if this is the latest measurement
-      queryClient.setQueryData(['measurements', 'summary'], (old: any) => {
-        if (!old?.metrics) return old
-        return {
-          ...old,
-          metrics: old.metrics.map((m: any) =>
-            m.metric === metric && m.latest_date === measurement.measured_at
-              ? { ...m, latest_value: newValue }
-              : m
-          )
-        }
-      })
-
-      // Clear editing state immediately
-      setEditingId(null)
-      setEditValue('')
-
-      // Make API call in background
-      const response = await fetch(`/api/measurements/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          value: newValue,
-          unit: measurement.unit
-        })
-      })
-
-      if (!response.ok) throw new Error('Failed to update')
-
-      // Refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['measurements', 'detail', metric] })
-      queryClient.invalidateQueries({ queryKey: ['measurements', 'summary'] })
-
-    } catch (error) {
-      console.error('Update error:', error)
-      
-      // Rollback optimistic update on error
-      if (previousDetailData) {
-        queryClient.setQueryData(['measurements', 'detail', metric], previousDetailData)
-      }
-      if (previousSummaryData) {
-        queryClient.setQueryData(['measurements', 'summary'], previousSummaryData)
-      }
-
-      toast.error('Failed to update measurement. Changes have been reverted.')
-    }
+    // Clear editing state immediately
+    setEditingId(null)
+    setEditValue('')
+    
+    // Call mutation hook
+    await updateMeasurement(id, newValue)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this measurement?')) return
-
-    // Store previous data for rollback
-    const previousDetailData = queryClient.getQueryData<MetricDetailResponse>(['measurements', 'detail', metric])
-    const previousSummaryData = queryClient.getQueryData(['measurements', 'summary'])
-
-    try {
-      setDeleting(id)
-
-      // Optimistic update - remove from UI immediately
-      queryClient.setQueryData<MetricDetailResponse>(['measurements', 'detail', metric], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          measurements: old.measurements.filter(m => m.id !== id)
-        }
-      })
-
-      // Update summary if needed (recalculate latest)
-      queryClient.setQueryData(['measurements', 'summary'], (old: any) => {
-        if (!old?.metrics) return old
-        
-        const remainingMeasurements = previousDetailData?.measurements.filter(m => m.id !== id) || []
-        if (remainingMeasurements.length === 0) {
-          // Remove metric from summary if no measurements left
-          return {
-            ...old,
-            metrics: old.metrics.filter((m: any) => m.metric !== metric)
-          }
-        }
-        
-        // Update with new latest value
-        const latestMeasurement = remainingMeasurements.sort((a, b) => 
-          new Date(b.measured_at).getTime() - new Date(a.measured_at).getTime()
-        )[0]
-        
-        return {
-          ...old,
-          metrics: old.metrics.map((m: any) =>
-            m.metric === metric
-              ? { 
-                  ...m, 
-                  latest_value: latestMeasurement.value,
-                  latest_date: latestMeasurement.measured_at,
-                  point_count: remainingMeasurements.length
-                }
-              : m
-          )
-        }
-      })
-
-      // Make API call in background
-      const response = await fetch(`/api/measurements/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) throw new Error('Failed to delete')
-
-      // Refetch to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['measurements', 'detail', metric] })
-      queryClient.invalidateQueries({ queryKey: ['measurements', 'summary'] })
-
-    } catch (error) {
-      console.error('Delete error:', error)
-      
-      // Rollback optimistic update on error
-      if (previousDetailData) {
-        queryClient.setQueryData(['measurements', 'detail', metric], previousDetailData)
-      }
-      if (previousSummaryData) {
-        queryClient.setQueryData(['measurements', 'summary'], previousSummaryData)
-      }
-
-      toast.error('Failed to delete measurement. Changes have been reverted.')
-    } finally {
-      setDeleting(null)
-    }
+    await deleteMeasurement(id)
   }
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -342,7 +174,7 @@ function MetricDetailPageContent() {
                 <tr className="border-b border-white/10">
                   <th className="text-left p-3 text-xs font-medium text-white/70">
                     <button
-                      onClick={() => handleSort('date')}
+                      onClick={() => toggleSort('date')}
                       className="flex items-center gap-1 hover:text-white transition-colors"
                     >
                       Date
@@ -351,7 +183,7 @@ function MetricDetailPageContent() {
                   </th>
                   <th className="text-left p-3 text-xs font-medium text-white/70">
                     <button
-                      onClick={() => handleSort('value')}
+                      onClick={() => toggleSort('value')}
                       className="flex items-center gap-1 hover:text-white transition-colors"
                     >
                       Value
