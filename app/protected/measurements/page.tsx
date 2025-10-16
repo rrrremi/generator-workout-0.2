@@ -11,32 +11,12 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 function MeasurementsPageContent() {
   const { data, isLoading, error } = useMeasurementsSummary()
   
-  // Filter and sort state
+  // Filter and sort state - ALL HOOKS MUST BE AT THE TOP
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [sortField, setSortField] = useState<'name' | 'date'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <section className="mx-auto w-full max-w-3xl px-2 pb-10">
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
-          Error loading measurements. Please try again.
-        </div>
-      </section>
-    )
-  }
-
-  const hasMetrics = data?.metrics && data.metrics.length > 0
   
   // Get unique categories from the data
   const availableCategories = useMemo(() => {
@@ -107,6 +87,29 @@ function MeasurementsPageContent() {
     return filtered
   }, [data?.metrics, searchTerm, selectedCategories, sortField, sortDirection])
   
+  // Computed values
+  const hasMetrics = data?.metrics && data.metrics.length > 0
+  const hasActiveFilters = searchTerm || selectedCategories.length > 0
+  
+  // Early returns AFTER all hooks
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="mx-auto w-full max-w-3xl px-2 pb-10">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+          Error loading measurements. Please try again.
+        </div>
+      </section>
+    )
+  }
+  
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories(prev => 
       prev.includes(categoryId)
@@ -128,8 +131,6 @@ function MeasurementsPageContent() {
     setSearchTerm('')
     setSelectedCategories([])
   }
-  
-  const hasActiveFilters = searchTerm || selectedCategories.length > 0
   
   const SortIcon = ({ field }: { field: 'name' | 'date' }) => {
     if (sortField !== field) {
