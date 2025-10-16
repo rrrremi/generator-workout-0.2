@@ -200,12 +200,25 @@ function MetricDetailPageContent() {
                     key={measurement.id} 
                     className="border-b border-white/5 hover:bg-white/5 transition-colors"
                   >
-                    <td className="p-3 text-sm text-white/90">
-                      {new Date(measurement.measured_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                    <td className="p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-white/90">
+                          {new Date(measurement.measured_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                        {measurement.updated_at && 
+                         new Date(measurement.updated_at).getTime() > new Date(measurement.created_at).getTime() + 1000 && (
+                          <span className="text-[10px] text-white/40 mt-0.5">
+                            Modified: {new Date(measurement.updated_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
                       {editingId === measurement.id ? (
