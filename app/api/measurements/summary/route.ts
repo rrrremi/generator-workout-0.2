@@ -33,10 +33,11 @@ export async function GET() {
           throw error;
         }
 
-        // Transform data - display_name now comes from RPC function
+        // Transform data - display_name and category now come from RPC function
         const metrics: MetricSummary[] = (data || []).map((row: any) => ({
           metric: row.metric,
           display_name: row.display_name || row.metric.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          category: row.category || 'other',
           latest_value: row.latest_value,
           unit: row.unit,
           latest_date: row.latest_date,
