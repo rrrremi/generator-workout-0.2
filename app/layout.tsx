@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import PsychedelicBackground from '@/components/layout/PsychedelicBackground'
 import { ReactQueryProvider } from '@/components/providers/ReactQueryProvider'
+import { Toaster } from 'sonner'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -71,6 +72,7 @@ export default function RootLayout({
               <Footer />
             </div>
           </div>
+          <Toaster position="top-right" richColors closeButton />
         </ReactQueryProvider>
       </body>
     </html>

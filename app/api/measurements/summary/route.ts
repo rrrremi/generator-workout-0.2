@@ -1,25 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { cacheHelper, cacheKeys, cacheTTL } from '@/lib/cache';
+import type { MetricSummary } from '@/types/measurements';
 
 export const dynamic = 'force-dynamic';
-
-interface SparklinePoint {
-  value: number;
-  date: string;
-}
-
-interface MetricSummary {
-  metric: string;
-  display_name: string;
-  latest_value: number;
-  unit: string;
-  latest_date: string;
-  source: string;
-  confidence: number | null;
-  sparkline_points: SparklinePoint[];
-  point_count: number;
-}
 
 export async function GET() {
   const startTime = Date.now();

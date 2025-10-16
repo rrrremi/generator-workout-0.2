@@ -9,27 +9,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sparkline } from '@/components/measurements/Sparkline'
 import { MEASUREMENTS_QUERY_OPTIONS } from '@/lib/react-query-config'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-
-interface Measurement {
-  id: string
-  value: number
-  unit: string
-  measured_at: string
-  source: string
-  confidence: number | null
-  notes: string | null
-  created_at: string
-}
-
-interface MetricDetailResponse {
-  metric: string
-  display_name: string
-  measurements: Measurement[]
-  query_time_ms: number
-}
-
-type SortField = 'date' | 'value'
-type SortDirection = 'asc' | 'desc'
+import type { MetricDetailResponse, MeasurementPublic, SortField, SortDirection } from '@/types/measurements'
+import { toast } from 'sonner'
 
 function MetricDetailPageContent() {
   const params = useParams()
@@ -90,7 +71,7 @@ function MetricDetailPageContent() {
     }
   }
 
-  const startEdit = (measurement: Measurement) => {
+  const startEdit = (measurement: MeasurementPublic) => {
     setEditingId(measurement.id)
     setEditValue(measurement.value.toString())
   }
@@ -166,7 +147,7 @@ function MetricDetailPageContent() {
         queryClient.setQueryData(['measurements', 'summary'], previousSummaryData)
       }
 
-      alert('Failed to update measurement. Changes have been reverted.')
+      toast.error('Failed to update measurement. Changes have been reverted.')
     }
   }
 
@@ -244,7 +225,7 @@ function MetricDetailPageContent() {
         queryClient.setQueryData(['measurements', 'summary'], previousSummaryData)
       }
 
-      alert('Failed to delete measurement. Changes have been reverted.')
+      toast.error('Failed to delete measurement. Changes have been reverted.')
     } finally {
       setDeleting(null)
     }

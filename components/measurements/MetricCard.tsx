@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Sparkline } from './Sparkline';
-import type { MetricSummary } from '@/hooks/useMeasurementsSummary';
+import type { MetricSummary } from '@/types/measurements';
 import { InlineErrorBoundary } from '@/components/ErrorBoundary';
 
 interface MetricCardProps {
