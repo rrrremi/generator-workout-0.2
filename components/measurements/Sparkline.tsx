@@ -36,15 +36,30 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
     return null;
   }
 
-  // Calculate dynamic Y-axis domain for better sensitivity
+  // Calculate dynamic Y-axis domain with smart scaling
   const values = data.map(d => d.value);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue;
+  const avgValue = values.reduce((sum, v) => sum + v, 0) / values.length;
   
-  // Add 40% padding above and below for balanced visualization
-  // This makes changes visible without being overly dramatic
-  const padding = range * 0.4;
+  // Calculate percentage variation relative to average
+  const percentVariation = avgValue > 0 ? (range / avgValue) * 100 : 0;
+  
+  // Smart padding based on variation magnitude:
+  // - Large variations (>20%): Less padding needed (20%) - trend is already clear
+  // - Medium variations (5-20%): Moderate padding (35%) - balanced view
+  // - Small variations (<5%): More padding (50%) - zoom in to show subtle changes
+  let paddingPercent: number;
+  if (percentVariation > 20) {
+    paddingPercent = 0.2;  // Large swings - minimal padding
+  } else if (percentVariation > 5) {
+    paddingPercent = 0.35; // Medium changes - moderate padding
+  } else {
+    paddingPercent = 0.5;  // Small changes - more zoom
+  }
+  
+  const padding = range * paddingPercent;
   const yMin = minValue - padding;
   const yMax = maxValue + padding;
 
