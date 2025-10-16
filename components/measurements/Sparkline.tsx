@@ -94,7 +94,7 @@ export function Sparkline({ data, color = 'currentColor', unit = '' }: Sparkline
       <LineChart data={data}>
         <CartesianGrid 
           strokeDasharray="3 3" 
-          stroke="rgba(255, 255, 255, 0.06)" 
+          stroke="rgba(255, 255, 255, 0.1)" 
           vertical={false}
         />
         <YAxis domain={[yMin, yMax]} hide />
