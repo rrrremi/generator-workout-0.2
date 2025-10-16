@@ -9,7 +9,14 @@ const uploadSchema = z.object({
   fileName: z.string()
     .min(1, 'Filename required')
     .max(255, 'Filename too long')
-    .regex(/^[a-zA-Z0-9._-]+$/, 'Invalid filename format'),
+    .refine(
+      (name) => {
+        // Allow common filename characters including spaces
+        // Will be sanitized later, so just check for dangerous patterns
+        return !name.includes('..') && !name.includes('/') && !name.includes('\\');
+      },
+      'Invalid filename format'
+    ),
   fileSize: z.number()
     .min(1, 'File too small')
     .max(10 * 1024 * 1024, 'File must be less than 10MB'),
