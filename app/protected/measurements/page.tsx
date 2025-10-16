@@ -38,32 +38,41 @@ function MeasurementsPageContent() {
 
   const hasMetrics = data?.metrics && data.metrics.length > 0
   
-  // Define categories based on common measurement types
-  const categories = [
-    { id: 'body_composition', label: 'Body Composition' },
-    { id: 'vital_signs', label: 'Vital Signs' },
-    { id: 'strength', label: 'Strength' },
-    { id: 'flexibility', label: 'Flexibility' },
-    { id: 'other', label: 'Other' }
-  ]
-  
-  // Categorize metrics
-  const getCategoryForMetric = (metricName: string): string => {
-    const name = metricName.toLowerCase()
-    if (name.includes('weight') || name.includes('fat') || name.includes('muscle') || name.includes('bmi') || name.includes('body')) {
-      return 'body_composition'
+  // Get unique categories from the data
+  const availableCategories = useMemo(() => {
+    if (!data?.metrics) return []
+    
+    const categorySet = new Set(data.metrics.map(m => m.category))
+    const categoryLabels: Record<string, string> = {
+      composition: 'Body Composition',
+      segmental_lean: 'Segmental Lean Mass',
+      segmental_fat: 'Segmental Fat Mass',
+      water: 'Water Balance',
+      obesity: 'Obesity Metrics',
+      control: 'Control Targets',
+      energy: 'Energy & Metabolism',
+      targets: 'Target Values',
+      performance: 'Performance Scores',
+      segmental_analysis: 'Segmental Analysis',
+      impedance: 'Impedance',
+      blood_lipids: 'Blood Lipids',
+      blood_sugar: 'Blood Sugar',
+      blood_cells: 'Blood Cells',
+      vitals: 'Vital Signs',
+      liver: 'Liver Function',
+      kidney: 'Kidney Function',
+      thyroid: 'Thyroid',
+      vitamins: 'Vitamins & Minerals',
+      other: 'Other'
     }
-    if (name.includes('blood') || name.includes('heart') || name.includes('pressure') || name.includes('pulse')) {
-      return 'vital_signs'
-    }
-    if (name.includes('strength') || name.includes('lift') || name.includes('max')) {
-      return 'strength'
-    }
-    if (name.includes('flex') || name.includes('stretch') || name.includes('range')) {
-      return 'flexibility'
-    }
-    return 'other'
-  }
+    
+    return Array.from(categorySet)
+      .map(cat => ({
+        id: cat,
+        label: categoryLabels[cat] || cat
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [data?.metrics])
   
   // Filter and sort metrics
   const filteredAndSortedMetrics = useMemo(() => {
@@ -75,10 +84,9 @@ function MeasurementsPageContent() {
         metric.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         metric.metric.toLowerCase().includes(searchTerm.toLowerCase())
       
-      // Filter by category
-      const metricCategory = getCategoryForMetric(metric.metric)
+      // Filter by category (use actual category from catalog)
       const matchesCategory = selectedCategories.length === 0 || 
-        selectedCategories.includes(metricCategory)
+        selectedCategories.includes(metric.category)
       
       return matchesSearch && matchesCategory
     })
@@ -249,7 +257,7 @@ function MeasurementsPageContent() {
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-white/70 mb-2">Categories</p>
                     <div className="flex flex-wrap gap-2">
-                      {categories.map(category => (
+                      {availableCategories.map(category => (
                         <button
                           key={category.id}
                           onClick={() => toggleCategory(category.id)}

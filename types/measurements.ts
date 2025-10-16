@@ -40,6 +40,7 @@ export type MeasurementPublic = Omit<Measurement, 'user_id'>;
 export interface MetricSummary {
   metric: string;
   display_name: string;
+  category: string;
   latest_value: number;
   unit: string;
   latest_date: string;
