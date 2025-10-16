@@ -8,6 +8,15 @@ import { useMeasurementsSummary } from '@/hooks/useMeasurementsSummary'
 import { MetricCard } from '@/components/measurements/MetricCard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
+// Date filter options (defined outside component to avoid recreation)
+const DATE_FILTER_OPTIONS = [
+  { id: 'all' as const, label: 'All Time' },
+  { id: 'today' as const, label: 'Today' },
+  { id: 'week' as const, label: 'Last 7 Days' },
+  { id: 'month' as const, label: 'Last 30 Days' },
+  { id: 'custom' as const, label: 'Custom Range' }
+]
+
 function MeasurementsPageContent() {
   const { data, isLoading, error } = useMeasurementsSummary()
   
@@ -298,16 +307,10 @@ function MeasurementsPageContent() {
                     <div>
                       <p className="text-xs font-medium text-white/70 mb-2">Date Added</p>
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {[
-                          { id: 'all', label: 'All Time' },
-                          { id: 'today', label: 'Today' },
-                          { id: 'week', label: 'Last 7 Days' },
-                          { id: 'month', label: 'Last 30 Days' },
-                          { id: 'custom', label: 'Custom Range' }
-                        ].map(option => (
+                        {DATE_FILTER_OPTIONS.map(option => (
                           <button
                             key={option.id}
-                            onClick={() => setDateFilter(option.id as any)}
+                            onClick={() => setDateFilter(option.id)}
                             className={`px-2 py-1 rounded-md text-xs transition-colors ${
                               dateFilter === option.id
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
