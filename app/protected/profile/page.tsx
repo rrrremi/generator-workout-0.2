@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { User, Mail, Calendar, BarChart3, Settings, ArrowLeft, Edit, Users } from 'lucide-react'
+import { User, Mail, Calendar, BarChart3, Settings, ArrowLeft, Edit, Users, Activity, ExternalLink } from 'lucide-react'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
   const [workoutCount, setWorkoutCount] = useState(0)
+  const [analyses, setAnalyses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
@@ -46,6 +47,16 @@ export default function ProfilePage() {
           .eq('user_id', user.id)
 
         setWorkoutCount(count || 0)
+
+        // Get user's health analyses
+        const { data: analysesData } = await supabase
+          .from('health_analyses')
+          .select('id, created_at, summary, status, metrics_count')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        setAnalyses(analysesData || [])
       } catch (err) {
         console.error('Error fetching profile data:', err)
         setError('Failed to load profile data')
@@ -244,6 +255,47 @@ export default function ProfilePage() {
               </div>
             </div>
           </motion.div>
+
+          {/* Health Analyses */}
+          {analyses.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <div className="rounded-lg border border-transparent bg-white/5 backdrop-blur-xl">
+                <div className="flex items-center justify-between p-2 border-b border-transparent">
+                  <h3 className="text-xs text-white/90 flex items-center">
+                    <Activity className="h-3.5 w-3.5 mr-1" />
+                    Recent Health Analyses
+                  </h3>
+                  <Link href="/protected/measurements">
+                    <span className="text-[10px] text-white/50 hover:text-white/80 transition-colors">View All</span>
+                  </Link>
+                </div>
+                <div className="p-2 space-y-2">
+                  {analyses.map((analysis) => (
+                    <Link key={analysis.id} href={`/protected/measurements/analysis/${analysis.id}`}>
+                      <div className="rounded-lg border border-transparent bg-white/5 p-2 hover:bg-white/10 transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] text-white/50">
+                                {new Date(analysis.created_at).toLocaleDateString()}
+                              </span>
+                              <span className="text-[10px] text-white/50">
+                                {analysis.metrics_count} metrics
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/80 line-clamp-2">
+                              {analysis.summary}
+                            </p>
+                          </div>
+                          <ExternalLink className="h-3 w-3 text-white/40 flex-shrink-0 mt-0.5" />
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       </section>
     </>
