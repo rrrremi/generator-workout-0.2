@@ -19,7 +19,8 @@ Each KPI object:
 - m: Array of required metric keys
 - v: CALCULATED numeric value (use latest measurements, round to 2 decimals)
 - u: Unit (ratio, %, points, level, etc)
-- d: Brief description (<50 chars)
+- r: Optimal range (e.g., "<4", "18.5-24.9", ">60", "0.5-2.0")
+- d: Brief description
 
 Domains & KPI Examples:
 Lipid: tc/hdl, tg/hdl, log10(tg/hdl), ldl/hdl, non_hdl, remnant_chol
@@ -38,15 +39,15 @@ Stress: cortisol/dhea, cortisol_am/cortisol_pm
 
 Example output:
 [
-  {"id":"lipid_tc_hdl","name":"TC/HDL Ratio","cat":"Lipid","f":"tc/hdl","m":["tc","hdl"],"v":4.2,"u":"ratio","d":"CVD risk; <4 optimal"},
-  {"id":"met_homa_ir","name":"HOMA-IR","cat":"Metabolic","f":"(glucose*insulin)/405","m":["glucose","insulin"],"v":2.8,"u":"index","d":"Insulin resistance"},
-  {"id":"body_bmi","name":"BMI","cat":"Body","f":"weight/(height^2)","m":["weight","height"],"v":24.5,"u":"kg/m²","d":"Body mass index"}
+  {"id":"lipid_tc_hdl","name":"TC/HDL Ratio","cat":"Lipid","f":"tc/hdl","m":["tc","hdl"],"v":4.2,"u":"ratio","r":"<4","d":"CVD risk indicator"},
+  {"id":"met_homa_ir","name":"HOMA-IR","cat":"Metabolic","f":"(glucose*insulin)/405","m":["glucose","insulin"],"v":2.8,"u":"index","r":"<2.5","d":"Insulin resistance"},
+  {"id":"body_bmi","name":"BMI","cat":"Body","f":"weight/(height^2)","m":["weight","height"],"v":24.5,"u":"kg/m²","r":"18.5-24.9","d":"Body mass index"}
 ]
 
 Instructions:
 1. CSV contains LATEST value for each metric
 2. Calculate v using the formula f with provided values
-3. Include ALL calculable KPIs (80+) across all domains
+3. Include ALL calculable KPIs across all domains
 4. If required metrics missing, skip that KPI
 5. Return ONLY JSON array, no markdown`
 

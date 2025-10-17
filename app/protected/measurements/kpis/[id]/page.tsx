@@ -15,6 +15,7 @@ interface KPI {
   m: string[]
   v?: number
   u?: string
+  r?: string
   d: string
 }
 
@@ -206,6 +207,11 @@ export default function KPIsDetailPage() {
                         )}
                       </div>
                       <p className="text-[10px] text-white/50 mt-0.5">{kpi.d}</p>
+                      {kpi.r && (
+                        <div className="mt-1 inline-block rounded bg-emerald-500/20 px-1.5 py-0.5">
+                          <span className="text-[10px] text-emerald-300 font-medium">Optimal: {kpi.r}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-start gap-1.5">
