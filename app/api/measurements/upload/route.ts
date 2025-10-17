@@ -34,7 +34,7 @@ const uploadLimitMap = new Map<string, { count: number; resetAt: number }>();
 function checkUploadLimit(userId: string): boolean {
   const now = Date.now();
   const userLimit = uploadLimitMap.get(userId);
-  const maxUploads = 5; // 5 uploads per hour
+  const maxUploads = 15; // 15 uploads per hour
   const windowMs = 60 * 60 * 1000; // 1 hour
 
   if (!userLimit || now > userLimit.resetAt) {
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting
     if (!checkUploadLimit(user.id)) {
       return NextResponse.json(
-        { error: 'Upload limit exceeded. Maximum 5 uploads per hour.' },
+        { error: 'Upload limit exceeded. Maximum 15 uploads per hour.' },
         { status: 429 }
       );
     }
