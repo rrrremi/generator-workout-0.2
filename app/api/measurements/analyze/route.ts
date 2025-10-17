@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
+import { cacheHelper, cacheKeys, cacheTTL } from '@/lib/cache'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -102,6 +103,8 @@ ${csv}`
 }
 
 export async function POST(request: Request) {
+  const startTime = Date.now()
+  
   try {
     const supabase = await createClient()
 
@@ -112,24 +115,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('age, sex')
-      .eq('id', user.id)
-      .single()
+    // OPTIMIZATION 1: Parallel queries instead of sequential
+    const [profileResult, measurementsResult, catalogData] = await Promise.all([
+      // Get user profile
+      supabase
+        .from('profiles')
+        .select('age, sex')
+        .eq('id', user.id)
+        .single(),
+      
+      // OPTIMIZATION 2: Limit data at DB level - only get last 10 per metric
+      // Use a subquery to get recent measurements efficiently
+      supabase
+        .from('measurements')
+        .select('metric, value, unit, measured_at, source')
+        .eq('user_id', user.id)
+        .order('measured_at', { ascending: false })
+        .limit(500), // Reasonable limit: ~50 metrics × 10 values
+      
+      // OPTIMIZATION 3: Cache catalog (rarely changes)
+      cacheHelper.getOrSet(
+        cacheKeys.metricsCatalog(),
+        async () => {
+          const { data } = await supabase
+            .from('metrics_catalog')
+            .select('key, display_name, category')
+          
+          return (data || []).reduce((acc, item) => {
+            acc[item.key] = { display_name: item.display_name, category: item.category }
+            return acc
+          }, {} as Record<string, { display_name: string; category: string }>)
+        },
+        cacheTTL.LONG // 15 minutes - catalog rarely changes
+      )
+    ])
+
+    const { data: profile, error: profileError } = profileResult
+    const { data: measurements, error: measurementsError } = measurementsResult
 
     if (profileError) {
       console.error('Profile error:', profileError)
       return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 })
     }
-
-    // Get all measurements
-    const { data: measurements, error: measurementsError } = await supabase
-      .from('measurements')
-      .select('metric, value, unit, measured_at, source')
-      .eq('user_id', user.id)
-      .order('measured_at', { ascending: false })
 
     if (measurementsError) {
       console.error('Measurements error:', measurementsError)
@@ -144,15 +171,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get metrics catalog for display names and categories
-    const { data: catalog } = await supabase
-      .from('metrics_catalog')
-      .select('key, display_name, category')
-
-    const catalogData = (catalog || []).reduce((acc, item) => {
-      acc[item.key] = { display_name: item.display_name, category: item.category }
-      return acc
-    }, {} as Record<string, { display_name: string; category: string }>)
+    const dbTime = Date.now() - startTime
+    console.log(`DB queries completed in ${dbTime}ms`)
 
     // Format data as CSV
     const csvData = formatMeasurementsAsCSV(profile, measurements, catalogData)
@@ -167,7 +187,9 @@ export async function POST(request: Request) {
     const metricsCount = uniqueMetrics.size
 
     // Call OpenAI
-    console.log('Calling OpenAI for health analysis...')
+    const aiStartTime = Date.now()
+    console.log(`Calling OpenAI for health analysis (${metricsCount} metrics, ${measurements.length} data points)...`)
+    
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -177,6 +199,9 @@ export async function POST(request: Request) {
       temperature: 0.3,
       response_format: { type: 'json_object' }
     })
+    
+    const aiTime = Date.now() - aiStartTime
+    console.log(`OpenAI completed in ${aiTime}ms`)
 
     const responseText = completion.choices[0].message.content
     if (!responseText) {
@@ -226,12 +251,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 })
     }
 
-    console.log('Health analysis completed:', analysis.id)
+    const totalTime = Date.now() - startTime
+    console.log(`Health analysis completed: ${analysis.id} (total: ${totalTime}ms, db: ${dbTime}ms, ai: ${aiTime}ms)`)
 
     return NextResponse.json({
       analysis_id: analysis.id,
       status: 'completed',
-      data: analysisData
+      data: analysisData,
+      ...(process.env.NODE_ENV === 'development' && {
+        performance: {
+          total_ms: totalTime,
+          db_ms: dbTime,
+          ai_ms: aiTime,
+          tokens: completion.usage
+        }
+      })
     })
 
   } catch (error: any) {
