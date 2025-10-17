@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Scale, Upload, Plus, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Scale, Upload, Plus, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown, ArrowUp, ArrowDown, Activity } from 'lucide-react'
 import { useMeasurementsSummary } from '@/hooks/useMeasurementsSummary'
 import { MetricCard } from '@/components/measurements/MetricCard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -29,6 +29,7 @@ function MeasurementsPageContent() {
   const [customDateTo, setCustomDateTo] = useState('')
   const [sortField, setSortField] = useState<'name' | 'date'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false)
   
   // Get unique categories from the data
   const availableCategories = useMemo(() => {
@@ -158,6 +159,31 @@ function MeasurementsPageContent() {
     setCustomDateTo('')
   }
   
+  const handleGenerateAnalysis = async () => {
+    setIsGeneratingAnalysis(true)
+    try {
+      const response = await fetch('/api/measurements/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate analysis')
+      }
+
+      const result = await response.json()
+      
+      // Redirect to analysis page
+      window.location.href = `/protected/measurements/analysis/${result.analysis_id}`
+    } catch (error: any) {
+      console.error('Error generating analysis:', error)
+      alert(error.message || 'Failed to generate analysis')
+    } finally {
+      setIsGeneratingAnalysis(false)
+    }
+  }
+
   const SortIcon = ({ field }: { field: 'name' | 'date' }) => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-3 w-3 text-white/30" />
@@ -173,6 +199,14 @@ function MeasurementsPageContent() {
       <div className="mb-2 flex items-center justify-between relative z-10">
         <div></div>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleGenerateAnalysis}
+            disabled={isGeneratingAnalysis || !hasMetrics}
+            className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            {isGeneratingAnalysis ? 'Analyzing...' : 'Analysis'}
+          </button>
           <Link href="/protected/measurements/upload">
             <button className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors">
               <Upload className="h-3.5 w-3.5" />
