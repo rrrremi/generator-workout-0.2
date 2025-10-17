@@ -129,7 +129,7 @@ export default function Header() {
   const navigationItems = [
     // Removed Home button
     // Removed Dashboard button
-    { href: '/protected/profile', label: 'Profile', icon: User, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
+    // Profile moved to right side (icon only)
     { href: '/protected/workouts', label: 'Workouts', icon: Dumbbell, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
     { href: '/protected/measurements', label: 'Measurements', icon: Scale, requiresAuth: true, showAlways: false, hideWhenAuth: false, requiresAdmin: false },
     // Removed Admin button
@@ -215,6 +215,17 @@ export default function Header() {
                       Admin
                     </Link>
                   )}
+                  <Link
+                    href="/protected/profile"
+                    className={`flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-300 ${
+                      isActiveLink('/protected/profile')
+                        ? 'bg-white/10 text-white/90'
+                        : 'bg-transparent text-white/50 hover:bg-white/5 hover:text-white/80'
+                    }`}
+                    aria-label="Profile"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                  </Link>
                   <button
                     onClick={handleSignOut}
                     className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-light bg-transparent text-white/50 hover:bg-white/5 hover:text-white/80 transition-all duration-300"
@@ -286,6 +297,20 @@ export default function Header() {
                     </Link>
                   )
                 })}
+
+                {/* Profile Button */}
+                <Link
+                  href="/protected/profile"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-light transition-all duration-300 ${
+                    isActiveLink('/protected/profile')
+                      ? 'bg-white/10 text-white/90'
+                      : 'bg-transparent text-white/50 hover:bg-white/5 hover:text-white/80'
+                  }`}
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Profile
+                </Link>
 
                 {/* Admin Button */}
                 {isAdmin && (
