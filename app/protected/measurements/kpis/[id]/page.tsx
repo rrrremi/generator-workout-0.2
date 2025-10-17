@@ -55,6 +55,10 @@ export default function KPIsDetailPage() {
           throw fetchError
         }
 
+        console.log('Fetched KPI record:', data)
+        console.log('KPIs array:', data?.kpis)
+        console.log('KPIs length:', data?.kpis?.length)
+        
         setKpiRecord(data as KPIRecord)
       } catch (err: any) {
         console.error('Error fetching KPIs:', err)
@@ -89,11 +93,14 @@ export default function KPIsDetailPage() {
     )
   }
 
+  // Ensure kpis is an array
+  const kpisArray = Array.isArray(kpiRecord.kpis) ? kpiRecord.kpis : []
+
   // Get unique categories
-  const categories = Array.from(new Set(kpiRecord.kpis.map(k => k.cat))).sort()
+  const categories = Array.from(new Set(kpisArray.map(k => k.cat))).sort()
 
   // Filter KPIs
-  const filteredKPIs = kpiRecord.kpis.filter(kpi => {
+  const filteredKPIs = kpisArray.filter(kpi => {
     const matchesSearch = searchTerm === '' || 
       kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       kpi.d.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,7 +144,7 @@ export default function KPIsDetailPage() {
               <div className="flex items-center gap-3 text-xs text-white/60">
                 <span>{new Date(kpiRecord.created_at).toLocaleDateString()}</span>
                 <span>•</span>
-                <span>{kpiRecord.kpis.length} KPIs</span>
+                <span>{kpisArray.length} KPIs</span>
                 <span>•</span>
                 <span>{kpiRecord.metrics_count} metrics</span>
               </div>
@@ -173,7 +180,7 @@ export default function KPIsDetailPage() {
             </div>
           </div>
           <div className="mt-2 text-xs text-white/50">
-            Showing {filteredKPIs.length} of {kpiRecord.kpis.length} KPIs
+            Showing {filteredKPIs.length} of {kpisArray.length} KPIs
           </div>
         </div>
 

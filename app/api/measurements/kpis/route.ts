@@ -164,8 +164,8 @@ export async function POST(request: Request) {
         { role: 'system', content: KPI_PROMPT },
         { role: 'user', content: csvData }
       ],
-      temperature: 0.2,
-      response_format: { type: 'json_object' }
+      temperature: 0.2
+      // Note: Removed response_format to allow JSON array response
     })
     
     const aiTime = Date.now() - aiStartTime
@@ -176,11 +176,21 @@ export async function POST(request: Request) {
       throw new Error('Empty response from OpenAI')
     }
 
-    // Parse JSON response
-    const kpisData = JSON.parse(responseText)
+    console.log('Raw OpenAI response:', responseText.substring(0, 500))
+
+    // Parse JSON response (strip markdown code blocks if present)
+    let cleanContent = responseText.trim()
+    if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```(?:json)?\s*\n?/, '')
+      cleanContent = cleanContent.replace(/\n?```\s*$/, '')
+    }
+
+    const kpisData = JSON.parse(cleanContent)
     
     // Extract KPIs array (handle both {kpis: [...]} and direct array)
     const kpisArray = Array.isArray(kpisData) ? kpisData : (kpisData.kpis || kpisData.indicators || [])
+    
+    console.log(`Extracted ${kpisArray.length} KPIs`)
 
     // Store in database
     const { data: kpiRecord, error: insertError } = await supabase
