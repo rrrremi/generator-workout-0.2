@@ -166,7 +166,7 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 focus-ring rounded-lg p-2">
+          <Link href="/" className="flex items-center space-x-2 rounded-lg p-2 outline-none focus:outline-none">
             <Dumbbell className="h-5 w-5 text-white/90" strokeWidth={1.5} />
             <span className="hidden font-light text-lg text-white/90 tracking-wide sm:block">
               FitGen
