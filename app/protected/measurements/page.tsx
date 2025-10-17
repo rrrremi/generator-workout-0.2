@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Scale, Upload, Plus, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown, ArrowUp, ArrowDown, Activity } from 'lucide-react'
+import { Scale, Upload, Plus, Search, Filter, ChevronDown, ChevronUp, X, ArrowUpDown, ArrowUp, ArrowDown, Activity, TrendingUp } from 'lucide-react'
 import { useMeasurementsSummary } from '@/hooks/useMeasurementsSummary'
 import { MetricCard } from '@/components/measurements/MetricCard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -30,6 +30,7 @@ function MeasurementsPageContent() {
   const [sortField, setSortField] = useState<'name' | 'date'>('name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false)
+  const [isGeneratingKPIs, setIsGeneratingKPIs] = useState(false)
   
   // Get unique categories from the data
   const availableCategories = useMemo(() => {
@@ -184,6 +185,31 @@ function MeasurementsPageContent() {
     }
   }
 
+  const handleGenerateKPIs = async () => {
+    setIsGeneratingKPIs(true)
+    try {
+      const response = await fetch('/api/measurements/kpis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate KPIs')
+      }
+
+      const result = await response.json()
+      
+      // Redirect to KPIs page
+      window.location.href = `/protected/measurements/kpis/${result.kpi_id}`
+    } catch (error: any) {
+      console.error('Error generating KPIs:', error)
+      alert(error.message || 'Failed to generate KPIs')
+    } finally {
+      setIsGeneratingKPIs(false)
+    }
+  }
+
   const SortIcon = ({ field }: { field: 'name' | 'date' }) => {
     if (sortField !== field) {
       return <ArrowUpDown className="h-3 w-3 text-white/30" />
@@ -199,6 +225,14 @@ function MeasurementsPageContent() {
       <div className="mb-2 flex items-center justify-between relative z-10">
         <div></div>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleGenerateKPIs}
+            disabled={isGeneratingKPIs || !hasMetrics}
+            className="flex items-center gap-1 rounded-lg border border-transparent bg-white/5 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            {isGeneratingKPIs ? 'Generating...' : 'KPIs'}
+          </button>
           <button
             onClick={handleGenerateAnalysis}
             disabled={isGeneratingAnalysis || !hasMetrics}
