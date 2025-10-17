@@ -10,7 +10,7 @@ const openai = new OpenAI({
 // ULTRA-OPTIMIZED: Minimal prompt (600 tokens vs 1500 tokens = 60% reduction)
 const SYSTEM_PROMPT = `Clinician-analyst. CSV + pre-calculated KPIs in; JSON out only.
 
-Do: QC (unit/range/date/miss/dup) → interpret (age/sex refs) → use pre-calculated KPIs when available → derive additional metrics if needed → trends (Δabs,Δ%,dir) → relations (cross-domain + physiology) → paradoxes (with explanations) → risks (low/mod/high + why) → next steps (labs,lifestyle,clinical).
+Do: QC (unit/range/date/miss/dup) → interpret (age/sex refs) → use pre-calculated KPIs when available → derive additional metrics if needed → trends (Δabs,Δ%,dir) → relations (cross-domain + physiology) → paradoxes (with explanations) → risks (low/mod/high + why) → overall condition and next steps (labs,lifestyle,clinical).
 
 Schema:
 {
