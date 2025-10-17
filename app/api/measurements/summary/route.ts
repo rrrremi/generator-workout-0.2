@@ -49,7 +49,7 @@ export async function GET() {
 
         return metrics;
       },
-      cacheTTL.MEDIUM // 5 minutes cache
+      cacheTTL.SHORT // 1 minute cache (faster updates)
     );
 
     const queryTime = Date.now() - startTime;
