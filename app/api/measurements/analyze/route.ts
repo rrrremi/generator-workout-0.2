@@ -7,41 +7,103 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-// OPTIMIZED: Compact prompt (900 tokens vs 1500 tokens = 40% reduction)
-const SYSTEM_PROMPT = `Clinical health analyst. Analyze CSV health data (up to 5 recent values/metric). Return JSON only.
+// ULTRA-OPTIMIZED: Minimal prompt (600 tokens vs 1500 tokens = 60% reduction)
+const SYSTEM_PROMPT = `Clinician-analyst. CSV in; JSON out only.
 
-Tasks:
-1. QC: flag unit/range/date issues
-2. Interpret: use age/sex context, clinical ranges
-3. Derive: HOMA-IR, eGFR, LDL, TG/HDL, AIP, NLR/PLR, BMI, WHR, FFMI (if data permits)
-4. Trends: Δabs, Δ%, direction per metric
-5. Correlations: cross-domain patterns + physiology
-6. Paradoxes: contradictions + explanations
-7. Risks: low/mod/high + rationale
-8. Next steps: labs, lifestyle, clinical follow-up
+Do: QC (unit/range/date/miss/dup) → interpret (age/sex refs) → derive (HOMA-IR,eGFR,LDL,TG/HDL,AIP,NLR/PLR,BMI,WHR,FFMI if possible) → trends (Δabs,Δ%,dir) → relations (cross-domain + physiology) → paradoxes (with explanations) → risks (low/mod/high + why) → next steps (labs,lifestyle,clinical).
 
-JSON schema:
+Schema:
 {
-  "summary": "str",
-  "qc_issues": [{"item":"","type":"unit/range/missing/dup/date","detail":""}],
-  "normalization_notes": ["str"],
-  "derived_metrics": [{"name":"","value":null,"unit":"","method":"","input_used":[],"valid":true,"note":""}],
-  "current_state": [{"metric":"","latest_value":null,"unit":"","date":"","interpretation":""}],
-  "trends": [{"metric":"","direction":"up/down/stable","delta_abs":null,"delta_pct":null,"start_date":"","end_date":"","comment":""}],
-  "correlations": [{"between":[],"strength":"weak/mod/strong","pattern":"pos/neg/nonlin","physiology":""}],
-  "paradoxes": [{"finding":"","why_paradoxical":"","possible_explanations":[]}],
-  "hypotheses": [{"claim":"","evidence":[],"alt_explanations":[]}],
-  "risk_assessment": [{"area":"","level":"low/mod/high","rationale":""}],
-  "recommendations_next_steps": {
-    "labs_to_repeat_or_add": [{"test":"","why":"","timing":""}],
-    "lifestyle_focus": [],
-    "clinical_followup": []
+  "sum": "",
+  "qc": [{"item":"","type":"unit/range/miss/dup/date","detail":""}],
+  "norm": [""],
+  "drv": [{"name":"","val":null,"unit":"","meth":"","inputs":[],"ok":true,"note":""}],
+  "state": [{"metric":"","val":null,"unit":"","date":"","interp":""}],
+  "tr": [{"metric":"","dir":"up/down/stable","d_abs":null,"d_pct":null,"start":"","end":"","cmt":""}],
+  "rel": [{"between":[],"strength":"weak/mod/strong","pattern":"pos/neg/nonlin","phys":""}],
+  "px": [{"finding":"","why":"","expl":[]}],
+  "hyp": [{"claim":"","ev":[],"alt":[]}],
+  "risk": [{"area":"","lvl":"low/mod/high","why":""}],
+  "next": {
+    "labs": [{"test":"","why":"","when":""}],
+    "life": [],
+    "clinic": []
   },
-  "uncertainties": [],
-  "data_gaps": []
+  "unc": [],
+  "gaps": []
 }
 
-Be specific, concise. Respect units. Invalid metrics: valid=false + explain.`
+Rules: concise; respect units; if derived invalid set ok=false with note.`
+
+// Map abbreviated response to full schema
+function mapAbbreviatedResponse(abbreviated: any): any {
+  return {
+    summary: abbreviated.sum || '',
+    qc_issues: (abbreviated.qc || []).map((item: any) => ({
+      item: item.item || '',
+      type: item.type || '',
+      detail: item.detail || ''
+    })),
+    normalization_notes: abbreviated.norm || [],
+    derived_metrics: (abbreviated.drv || []).map((item: any) => ({
+      name: item.name || '',
+      value: item.val,
+      unit: item.unit || '',
+      method: item.meth || '',
+      input_used: item.inputs || [],
+      valid: item.ok !== false,
+      note: item.note || ''
+    })),
+    current_state: (abbreviated.state || []).map((item: any) => ({
+      metric: item.metric || '',
+      latest_value: item.val,
+      unit: item.unit || '',
+      date: item.date || '',
+      interpretation: item.interp || ''
+    })),
+    trends: (abbreviated.tr || []).map((item: any) => ({
+      metric: item.metric || '',
+      direction: item.dir || '',
+      delta_abs: item.d_abs,
+      delta_pct: item.d_pct,
+      start_date: item.start || '',
+      end_date: item.end || '',
+      comment: item.cmt || ''
+    })),
+    correlations: (abbreviated.rel || []).map((item: any) => ({
+      between: item.between || [],
+      strength: item.strength || '',
+      pattern: item.pattern || '',
+      physiology: item.phys || ''
+    })),
+    paradoxes: (abbreviated.px || []).map((item: any) => ({
+      finding: item.finding || '',
+      why_paradoxical: item.why || '',
+      possible_explanations: item.expl || []
+    })),
+    hypotheses: (abbreviated.hyp || []).map((item: any) => ({
+      claim: item.claim || '',
+      evidence: item.ev || [],
+      alt_explanations: item.alt || []
+    })),
+    risk_assessment: (abbreviated.risk || []).map((item: any) => ({
+      area: item.area || '',
+      level: item.lvl || '',
+      rationale: item.why || ''
+    })),
+    recommendations_next_steps: {
+      labs_to_repeat_or_add: (abbreviated.next?.labs || []).map((item: any) => ({
+        test: item.test || '',
+        why: item.why || '',
+        timing: item.when || ''
+      })),
+      lifestyle_focus: abbreviated.next?.life || [],
+      clinical_followup: abbreviated.next?.clinic || []
+    },
+    uncertainties: abbreviated.unc || [],
+    data_gaps: abbreviated.gaps || []
+  }
+}
 
 interface Measurement {
   metric: string
@@ -201,7 +263,10 @@ export async function POST(request: Request) {
     }
 
     // Parse JSON response
-    const analysisData = JSON.parse(responseText)
+    const abbreviatedData = JSON.parse(responseText)
+    
+    // Map abbreviated response to full schema
+    const analysisData = mapAbbreviatedResponse(abbreviatedData)
 
     // Store in database
     const { data: analysis, error: insertError } = await supabase
