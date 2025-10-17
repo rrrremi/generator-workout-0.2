@@ -83,29 +83,87 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call OpenAI GPT-4o Vision API
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: EXTRACTION_PROMPT
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageUrl
-              }
-            }
-          ]
+    console.log('Fetching image from:', imageUrl);
+
+    // Download image and convert to base64 to avoid OpenAI timeout issues
+    let imageBase64: string;
+    try {
+      const imageResponse = await fetch(imageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0'
         }
-      ],
-      max_tokens: 2000, // Increased for more measurements
-      temperature: 0.1 // Low temperature for more consistent extraction
-    });
+      });
+
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      imageBase64 = buffer.toString('base64');
+      
+      // Detect image type from URL or default to png
+      const imageType = imageUrl.match(/\.(jpg|jpeg|png|webp)$/i)?.[1] || 'png';
+      const dataUrl = `data:image/${imageType};base64,${imageBase64}`;
+      
+      console.log(`Image downloaded successfully: ${buffer.length} bytes, type: ${imageType}`);
+
+      // Call OpenAI GPT-4o Vision API with base64 image
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: EXTRACTION_PROMPT
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: dataUrl
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.1
+      });
+
+      return await processOpenAIResponse(response);
+
+    } catch (fetchError: any) {
+      console.error('Error fetching image:', fetchError);
+      return NextResponse.json(
+        { error: `Failed to download image: ${fetchError.message}` },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
+    // Detailed error logging
+    console.error('=== MEASUREMENT EXTRACTION ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    console.error('Error stack:', error.stack);
+    console.error('====================================');
+
+    return NextResponse.json(
+      { 
+        error: error.message || 'Failed to extract measurements',
+        code: error.code,
+        type: error.type
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function processOpenAIResponse(response: any) {
+  try {
 
     const content = response.choices[0]?.message?.content;
     
@@ -175,13 +233,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    // Detailed error logging
-    console.error('=== MEASUREMENT EXTRACTION ERROR ===');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Full error:', JSON.stringify(error, null, 2));
-    console.error('Error stack:', error.stack);
+    console.error('=== PROCESS OPENAI RESPONSE ERROR ===');
+    console.error('Error:', error);
     console.error('====================================');
     
     // Handle specific OpenAI errors
