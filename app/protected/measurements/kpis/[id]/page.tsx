@@ -13,6 +13,8 @@ interface KPI {
   cat: string
   f: string
   m: string[]
+  v?: number
+  u?: string
   d: string
 }
 
@@ -188,17 +190,24 @@ export default function KPIsDetailPage() {
                 {kpis.map((kpi) => (
                   <div key={kpi.id} className="rounded-lg border border-white/10 bg-white/5 p-2.5 hover:bg-white/10 transition-colors">
                     <div className="mb-1.5">
-                      <h3 className="text-xs font-medium text-white/90">{kpi.name}</h3>
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-xs font-medium text-white/90">{kpi.name}</h3>
+                        {kpi.v !== undefined && (
+                          <span className="text-xs font-semibold text-emerald-400 shrink-0">
+                            {kpi.v} {kpi.u || ''}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-white/50 mt-0.5">{kpi.d}</p>
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-start gap-1.5">
                         <span className="text-[10px] text-white/40 shrink-0">Formula:</span>
-                        <code className="text-[10px] text-emerald-400 font-mono">{kpi.f}</code>
+                        <code className="text-[10px] text-cyan-400 font-mono">{kpi.f}</code>
                       </div>
                       <div className="flex items-start gap-1.5">
                         <span className="text-[10px] text-white/40 shrink-0">Metrics:</span>
-                        <span className="text-[10px] text-cyan-400">{kpi.m.join(', ')}</span>
+                        <span className="text-[10px] text-white/60">{kpi.m.join(', ')}</span>
                       </div>
                     </div>
                   </div>

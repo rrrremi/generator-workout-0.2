@@ -7,17 +7,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-const KPI_PROMPT = `Generate 80+ derived health KPIs from CSV data. Return JSON array only.
+const KPI_PROMPT = `Analyze CSV measurements and calculate ALL possible health KPIs. For each KPI, use the LATEST measurement values to compute the actual numeric result.
 
-Each KPI: {id, name, cat, f, m, d}
-- id: short_snake_case
+CRITICAL: Calculate the value (v) for each KPI using the formula and latest measurements.
+
+Each KPI object:
+- id: Unique snake_case identifier
 - name: Display name
 - cat: Category (Lipid/Metabolic/Liver/Kidney/Body/Vitamin/Mineral/Electrolyte/Iron/Inflammation/Hormone/Thyroid/Stress)
-- f: Formula (compact, use metric keys)
+- f: Formula (compact, use metric keys from CSV)
 - m: Array of required metric keys
+- v: CALCULATED numeric value (use latest measurements, round to 2 decimals)
+- u: Unit (ratio, %, points, level, etc)
 - d: Brief description (<50 chars)
 
-Domains & Examples:
+Domains & KPI Examples:
 Lipid: tc/hdl, tg/hdl, log10(tg/hdl), ldl/hdl, non_hdl, remnant_chol
 Metabolic: (gluc*ins)/405, 1/(log(ins)+log(gluc)), ln((tg*gluc)/2), gluc/hba1c
 Liver: ast/alt, alt/ast, ggt/alt, alp/alt, ast/plt, fib4
@@ -32,7 +36,19 @@ Hormone: (testo/shbg)*100, e2/testo, prog/e2
 Thyroid: ft3/ft4, tsh*ft4, ft3/rt3
 Stress: cortisol/dhea, cortisol_am/cortisol_pm
 
-Include all calculable KPIs from available metrics. Use actual metric keys from CSV.`
+Example output:
+[
+  {"id":"lipid_tc_hdl","name":"TC/HDL Ratio","cat":"Lipid","f":"tc/hdl","m":["tc","hdl"],"v":4.2,"u":"ratio","d":"CVD risk; <4 optimal"},
+  {"id":"met_homa_ir","name":"HOMA-IR","cat":"Metabolic","f":"(glucose*insulin)/405","m":["glucose","insulin"],"v":2.8,"u":"index","d":"Insulin resistance"},
+  {"id":"body_bmi","name":"BMI","cat":"Body","f":"weight/(height^2)","m":["weight","height"],"v":24.5,"u":"kg/m²","d":"Body mass index"}
+]
+
+Instructions:
+1. Use LATEST value for each metric from CSV
+2. Calculate v using the formula f
+3. Include ALL calculable KPIs (80+) across all domains
+4. If required metrics missing, skip that KPI
+5. Return ONLY JSON array, no markdown`
 
 interface Measurement {
   metric: string
