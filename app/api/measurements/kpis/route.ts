@@ -7,9 +7,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
-const KPI_PROMPT = `Analyze CSV measurements and calculate ALL possible health KPIs. For each KPI, use the LATEST measurement values to compute the actual numeric result.
+const KPI_PROMPT = `Analyze CSV measurements (LATEST value per metric) and calculate ALL possible health KPIs.
 
-CRITICAL: Calculate the value (v) for each KPI using the formula and latest measurements.
+CRITICAL: Calculate the value (v) for each KPI using the formula and provided measurements.
 
 Each KPI object:
 - id: Unique snake_case identifier
@@ -44,8 +44,8 @@ Example output:
 ]
 
 Instructions:
-1. Use LATEST value for each metric from CSV
-2. Calculate v using the formula f
+1. CSV contains LATEST value for each metric
+2. Calculate v using the formula f with provided values
 3. Include ALL calculable KPIs (80+) across all domains
 4. If required metrics missing, skip that KPI
 5. Return ONLY JSON array, no markdown`
@@ -61,21 +61,21 @@ function formatMeasurementsAsCSV(
   measurements: Measurement[],
   catalogData: Record<string, { display_name: string; category: string }>
 ): string {
-  // Group by metric
+  // Group by metric and get ONLY the latest measurement per metric
   const byMetric = measurements.reduce((acc, m) => {
     if (!acc[m.metric]) acc[m.metric] = []
     acc[m.metric].push(m)
     return acc
   }, {} as Record<string, Measurement[]>)
 
-  // Get last 5 per metric
+  // Get ONLY the latest measurement per metric
   const limitedData: Measurement[] = []
 
   for (const [metric, values] of Object.entries(byMetric)) {
-    const sorted = values
+    const latest = values
       .sort((a, b) => new Date(b.measured_at).getTime() - new Date(a.measured_at).getTime())
-      .slice(0, 5)
-    limitedData.push(...sorted)
+      [0] // Take only the first (latest) measurement
+    limitedData.push(latest)
   }
 
   // Build CSV
@@ -88,7 +88,7 @@ function formatMeasurementsAsCSV(
 
   const csv = [csvHeader, ...csvRows].join('\n')
 
-  return `Available Measurements:\n${csv}`
+  return `Latest Measurements (one per metric):\n${csv}`
 }
 
 export async function POST(request: Request) {
