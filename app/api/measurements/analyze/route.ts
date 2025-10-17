@@ -8,9 +8,9 @@ const openai = new OpenAI({
 })
 
 // ULTRA-OPTIMIZED: Minimal prompt (600 tokens vs 1500 tokens = 60% reduction)
-const SYSTEM_PROMPT = `Clinician-analyst. CSV in; JSON out only.
+const SYSTEM_PROMPT = `Clinician-analyst. CSV + pre-calculated KPIs in; JSON out only.
 
-Do: QC (unit/range/date/miss/dup) → interpret (age/sex refs) → derive (HOMA-IR,eGFR,LDL,TG/HDL,AIP,NLR/PLR,BMI,WHR,FFMI if possible) → trends (Δabs,Δ%,dir) → relations (cross-domain + physiology) → paradoxes (with explanations) → risks (low/mod/high + why) → next steps (labs,lifestyle,clinical).
+Do: QC (unit/range/date/miss/dup) → interpret (age/sex refs) → use pre-calculated KPIs when available → derive additional metrics if needed → trends (Δabs,Δ%,dir) → relations (cross-domain + physiology) → paradoxes (with explanations) → risks (low/mod/high + why) → next steps (labs,lifestyle,clinical).
 
 Schema:
 {
@@ -244,6 +244,24 @@ export async function POST(request: Request) {
     const uniqueMetrics = new Set(measurements.map(m => m.metric))
     const metricsCount = uniqueMetrics.size
 
+    // Fetch latest KPIs if available
+    const { data: latestKPIs } = await supabase
+      .from('health_kpis')
+      .select('kpis, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    let kpisData = ''
+    if (latestKPIs && latestKPIs.kpis && Array.isArray(latestKPIs.kpis)) {
+      const kpisFormatted = latestKPIs.kpis
+        .map((kpi: any) => `${kpi.name}: ${kpi.v} ${kpi.u || ''} (optimal: ${kpi.r || 'N/A'})`)
+        .join('\n')
+      kpisData = `\n\nDerived KPIs (pre-calculated):\n${kpisFormatted}`
+      console.log(`Including ${latestKPIs.kpis.length} pre-calculated KPIs in analysis`)
+    }
+
     // Call OpenAI
     const aiStartTime = Date.now()
     console.log(`Calling OpenAI for health analysis (${metricsCount} metrics, ${measurements.length} data points)...`)
@@ -252,7 +270,7 @@ export async function POST(request: Request) {
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: csvData }
+        { role: 'user', content: csvData + kpisData }
       ],
       temperature: 0.3,
       response_format: { type: 'json_object' }
