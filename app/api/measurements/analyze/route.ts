@@ -89,16 +89,20 @@ function mapAbbreviatedResponse(abbreviated: any): any {
     risk_assessment: (abbreviated.risk || []).map((item: any) => ({
       area: item.area || '',
       level: item.lvl || '',
-      rationale: item.why || ''
+      rationale: typeof item.why === 'string' ? item.why : (item.why?.rationale || item.rationale || '')
     })),
     recommendations_next_steps: {
       labs_to_repeat_or_add: (abbreviated.next?.labs || []).map((item: any) => ({
         test: item.test || '',
-        why: item.why || '',
+        why: typeof item.why === 'string' ? item.why : '',
         timing: item.when || ''
       })),
-      lifestyle_focus: abbreviated.next?.life || [],
-      clinical_followup: abbreviated.next?.clinic || []
+      lifestyle_focus: (abbreviated.next?.life || []).map((item: any) => 
+        typeof item === 'string' ? item : (item.text || item.action || JSON.stringify(item))
+      ),
+      clinical_followup: (abbreviated.next?.clinic || []).map((item: any) => 
+        typeof item === 'string' ? item : (item.text || item.action || JSON.stringify(item))
+      )
     },
     uncertainties: abbreviated.unc || [],
     data_gaps: abbreviated.gaps || []
