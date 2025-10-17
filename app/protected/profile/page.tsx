@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { User, Mail, Calendar, BarChart3, Settings, ArrowLeft, Edit } from 'lucide-react'
+import { User, Mail, Calendar, BarChart3, Settings, ArrowLeft, Edit, Users } from 'lucide-react'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -155,6 +155,22 @@ export default function ProfilePage() {
                     <span className="text-white/90">
                       {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
                     </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-white/70">
+                      <Users className="h-3 w-3" />
+                      Age
+                    </div>
+                    <span className="text-white/90">{profile?.age ? `${profile.age} years` : 'Not set'}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-white/70">
+                      <Users className="h-3 w-3" />
+                      Sex
+                    </div>
+                    <span className="text-white/90 capitalize">{profile?.sex ? profile.sex.replace(/_/g, ' ') : 'Not set'}</span>
                   </div>
 
                   <div className="flex items-center justify-between">

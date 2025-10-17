@@ -6,12 +6,14 @@ import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { ArrowLeft, User, Mail, Save, X } from 'lucide-react'
 import Link from 'next/link'
-import { Profile } from '@/types/database'
+import { Profile, Sex } from '@/types/database'
 
 export default function EditProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [fullName, setFullName] = useState('')
+  const [age, setAge] = useState<number | ''>('')
+  const [sex, setSex] = useState<Sex | ''>('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +44,8 @@ export default function EditProfilePage() {
         
         setProfile(profileData as Profile)
         setFullName(profileData?.full_name || '')
+        setAge(profileData?.age || '')
+        setSex(profileData?.sex || '')
       } catch (err) {
         console.error('Error fetching profile data:', err)
         setError('Failed to load profile data')
@@ -69,6 +73,8 @@ export default function EditProfilePage() {
         .from('profiles')
         .update({ 
           full_name: fullName,
+          age: age === '' ? null : Number(age),
+          sex: sex === '' ? null : sex,
           updated_at: new Date().toISOString() // Add updated_at to trigger real-time subscription
         })
         .eq('id', profile.id)
@@ -187,6 +193,48 @@ export default function EditProfilePage() {
                   placeholder="Enter your full name"
                   className="w-full px-2.5 py-1.5 bg-white/5 border border-transparent rounded-md text-white placeholder:text-white/40 focus:outline-none focus:border-fuchsia-500/50 transition-all duration-200 text-sm"
                 />
+              </div>
+
+              {/* Age */}
+              <div>
+                <label htmlFor="age" className="text-xs text-white/70 flex items-center gap-1 mb-1">
+                  <User className="h-3 w-3" />
+                  Age
+                </label>
+                <input
+                  id="age"
+                  name="age"
+                  type="number"
+                  min="13"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Enter your age"
+                  className="w-full px-2.5 py-1.5 bg-white/5 border border-transparent rounded-md text-white placeholder:text-white/40 focus:outline-none focus:border-fuchsia-500/50 transition-all duration-200 text-sm"
+                />
+                <p className="mt-1 text-[10px] text-white/50">Optional. Used for health analysis.</p>
+              </div>
+
+              {/* Sex */}
+              <div>
+                <label htmlFor="sex" className="text-xs text-white/70 flex items-center gap-1 mb-1">
+                  <User className="h-3 w-3" />
+                  Sex
+                </label>
+                <select
+                  id="sex"
+                  name="sex"
+                  value={sex}
+                  onChange={(e) => setSex(e.target.value as Sex | '')}
+                  className="w-full px-2.5 py-1.5 bg-white/5 border border-transparent rounded-md text-white focus:outline-none focus:border-fuchsia-500/50 transition-all duration-200 text-sm"
+                >
+                  <option value="" className="bg-gray-900">Not specified</option>
+                  <option value="male" className="bg-gray-900">Male</option>
+                  <option value="female" className="bg-gray-900">Female</option>
+                  <option value="other" className="bg-gray-900">Other</option>
+                  <option value="prefer_not_to_say" className="bg-gray-900">Prefer not to say</option>
+                </select>
+                <p className="mt-1 text-[10px] text-white/50">Optional. Used for health analysis.</p>
               </div>
               
               {/* Buttons */}

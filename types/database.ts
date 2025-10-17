@@ -1,7 +1,11 @@
+export type Sex = 'male' | 'female' | 'other' | 'prefer_not_to_say'
+
 export interface Profile {
   id: string
   email: string
   full_name: string | null
+  age: number | null
+  sex: Sex | null
   is_admin: boolean
   created_at: string
 }
