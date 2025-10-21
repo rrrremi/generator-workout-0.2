@@ -7,6 +7,53 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 })
 
+// GET: Fetch user's KPI history
+export async function GET() {
+  try {
+    const supabase = await createClient()
+
+    // Auth check
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Fetch KPIs - optimized query with only needed fields
+    const { data: kpis, error: fetchError } = await supabase
+      .from('health_kpis')
+      .select('id, created_at, metrics_count, kpis')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    if (fetchError) {
+      console.error('KPIs fetch error:', fetchError)
+      return NextResponse.json({ error: 'Failed to fetch KPIs' }, { status: 500 })
+    }
+
+    // Transform for efficient client consumption
+    const summary = (kpis || []).map(kpi => ({
+      id: kpi.id,
+      created_at: kpi.created_at,
+      metrics_count: kpi.metrics_count,
+      kpi_count: Array.isArray(kpi.kpis) ? kpi.kpis.length : 0,
+      categories: Array.isArray(kpi.kpis) 
+        ? Array.from(new Set(kpi.kpis.map((k: any) => k.cat))).slice(0, 3)
+        : []
+    }))
+
+    return NextResponse.json({ kpis: summary })
+
+  } catch (error: any) {
+    console.error('Error fetching KPIs:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 const KPI_PROMPT = `Analyze CSV measurements (LATEST value per metric) and calculate ALL possible health KPIs.
 
 CRITICAL: Calculate the value (v) for each KPI using the formula and provided measurements.

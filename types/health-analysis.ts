@@ -123,3 +123,12 @@ export interface HealthAnalysis {
   user_feedback: string | null
   is_archived: boolean
 }
+
+// KPI Summary for list views
+export interface HealthKPISummary {
+  id: string
+  created_at: string
+  metrics_count: number
+  kpi_count: number
+  categories: string[]
+}

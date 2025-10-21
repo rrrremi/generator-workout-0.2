@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 import { cacheHelper, cacheKeys, cacheTTL } from '@/lib/cache'
+import { KPI_CATALOG } from '@/lib/kpi-catalog'
+import { normalizeMetricName } from '@/lib/metric-mappings'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -232,6 +234,43 @@ export async function POST(request: Request) {
     const dbTime = Date.now() - startTime
     console.log(`DB queries completed in ${dbTime}ms`)
 
+    // NEW: Build metric availability map
+    const availableMetrics = new Map<string, {value: number, unit: string}>()
+    measurements.forEach(m => {
+      const normalizedKey = normalizeMetricName(m.metric)
+      if (!availableMetrics.has(normalizedKey)) {
+        availableMetrics.set(normalizedKey, {
+          value: m.value,
+          unit: m.unit
+        })
+      }
+    })
+
+    // Calculate derived metrics (BMI, Non-HDL, etc.)
+    if (availableMetrics.has('w') && availableMetrics.has('h')) {
+      const w = availableMetrics.get('w')!.value
+      const h = availableMetrics.get('h')!.value
+      availableMetrics.set('bmi', { value: w / (h * h), unit: 'kg/m²' })
+    }
+    if (availableMetrics.has('tc') && availableMetrics.has('hdl')) {
+      const tc = availableMetrics.get('tc')!.value
+      const hdl = availableMetrics.get('hdl')!.value
+      availableMetrics.set('nonhdl', { value: tc - hdl, unit: 'mg/dL' })
+    }
+    if (availableMetrics.has('glucose') && availableMetrics.has('insulin')) {
+      const glucose = availableMetrics.get('glucose')!.value
+      const insulin = availableMetrics.get('insulin')!.value
+      availableMetrics.set('homa_ir', { value: (glucose * insulin) / 405, unit: 'index' })
+    }
+
+    // Filter eligible KPIs
+    const availableKeys = Array.from(availableMetrics.keys())
+    const eligibleKPIs = KPI_CATALOG.filter(kpi => 
+      kpi.m.every(requiredMetric => availableKeys.includes(requiredMetric))
+    )
+
+    console.log(`Found ${eligibleKPIs.length} calculable KPIs out of ${KPI_CATALOG.length} total`)
+
     // Format data as CSV
     const csvData = formatMeasurementsAsCSV(profile, measurements, catalogData)
 
@@ -244,23 +283,24 @@ export async function POST(request: Request) {
     const uniqueMetrics = new Set(measurements.map(m => m.metric))
     const metricsCount = uniqueMetrics.size
 
-    // Fetch latest KPIs if available
-    const { data: latestKPIs } = await supabase
-      .from('health_kpis')
-      .select('kpis, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    // Build KPI calculation request
+    const kpiRequest = eligibleKPIs.length > 0 ? `
 
-    let kpisData = ''
-    if (latestKPIs && latestKPIs.kpis && Array.isArray(latestKPIs.kpis)) {
-      const kpisFormatted = latestKPIs.kpis
-        .map((kpi: any) => `${kpi.name}: ${kpi.v} ${kpi.u || ''} (optimal: ${kpi.r || 'N/A'})`)
-        .join('\n')
-      kpisData = `\n\nDerived KPIs (pre-calculated):\n${kpisFormatted}`
-      console.log(`Including ${latestKPIs.kpis.length} pre-calculated KPIs in analysis`)
-    }
+MANDATORY: Calculate ALL ${eligibleKPIs.length} KPIs below. Do NOT skip any.
+
+KPIs TO CALCULATE:
+${eligibleKPIs.map((kpi, idx) => `${idx + 1}. ${kpi.id}: ${kpi.name} = ${kpi.f} [needs: ${kpi.m.join(', ')}]`).join('\n')}
+
+AVAILABLE METRIC VALUES:
+${Array.from(availableMetrics.entries()).map(([key, data]) => `${key} = ${data.value} ${data.unit}`).join('\n')}
+
+RETURN FORMAT (must include ALL ${eligibleKPIs.length} KPIs):
+{
+  "kpis": [
+    {"id": "kpi_id", "name": "KPI Name", "cat": "Category", "v": calculated_value, "u": "unit", "r": "optimal_range", "d": "description", "f": "formula", "m": ["metric1","metric2"]}
+  ]
+}
+` : ''
 
     // Call OpenAI
     const aiStartTime = Date.now()
@@ -270,9 +310,9 @@ export async function POST(request: Request) {
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: csvData + kpisData }
+        { role: 'user', content: csvData + kpiRequest }
       ],
-      temperature: 0.3,
+      temperature: 0,  // Deterministic: always same output for same input
       response_format: { type: 'json_object' }
     })
     
@@ -286,6 +326,20 @@ export async function POST(request: Request) {
 
     // Parse JSON response
     const abbreviatedData = JSON.parse(responseText)
+    
+    // Extract KPIs if present
+    const calculatedKPIs = abbreviatedData.kpis || []
+    console.log(`Calculated ${calculatedKPIs.length} KPIs (expected: ${eligibleKPIs.length})`)
+    
+    // Warn if count mismatch
+    if (calculatedKPIs.length !== eligibleKPIs.length) {
+      console.warn(`⚠️ KPI count mismatch! Expected ${eligibleKPIs.length}, got ${calculatedKPIs.length}`)
+      const calculatedIds = new Set(calculatedKPIs.map((k: any) => k.id))
+      const missingKPIs = eligibleKPIs.filter(kpi => !calculatedIds.has(kpi.id))
+      if (missingKPIs.length > 0) {
+        console.warn(`Missing KPIs: ${missingKPIs.map(k => k.id).join(', ')}`)
+      }
+    }
     
     // Map abbreviated response to full schema
     const analysisData = mapAbbreviatedResponse(abbreviatedData)
@@ -330,8 +384,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 })
     }
 
+    // Store KPIs if calculated
+    if (calculatedKPIs.length > 0) {
+      const { error: kpiError } = await supabase
+        .from('health_kpis')
+        .insert({
+          user_id: user.id,
+          analysis_id: analysis.id,
+          metrics_count: metricsCount,
+          kpis: calculatedKPIs,
+          status: 'completed'
+        })
+      
+      if (kpiError) {
+        console.error('KPI insert error:', kpiError)
+        // Don't fail the whole request, just log
+      } else {
+        console.log(`Stored ${calculatedKPIs.length} KPIs in database`)
+      }
+    }
+
     const totalTime = Date.now() - startTime
     console.log(`Health analysis completed: ${analysis.id} (total: ${totalTime}ms, db: ${dbTime}ms, ai: ${aiTime}ms)`)
+    console.log(`KPI Summary: ${eligibleKPIs.length} eligible → ${calculatedKPIs.length} calculated ${calculatedKPIs.length === eligibleKPIs.length ? '✓' : '⚠️'}`)
 
     return NextResponse.json({
       analysis_id: analysis.id,
